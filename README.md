@@ -1,6 +1,6 @@
 # Calculadora de Ação Crefaz
 
-> Ferramenta interna da **Rose Portal Advocacia** que automatiza o cálculo de ações de revisão de contratos Crefaz. Você digita o nome da cliente, o app encontra a pasta no Drive, lê o contrato em PDF, busca a taxa BACEN do mês certo e gera a planilha de cálculo + capturas direto na pasta — pronta pra revisão.
+> Ferramenta interna para automatizar cálculo de revisão de contratos Crefaz. Você informa o nome da pasta no Drive, o app lê o contrato em PDF, busca a taxa BACEN do mês correto e gera planilha + capturas para conferência.
 
 > **Versão atual:** v0.6.0 (2026-04-29). Documentação técnica em [`README_DEV.md`](README_DEV.md).
 > Entrega para usuário final (funcionário da Rose): [`cliente-kit/README_USUARIO_FINAL.md`](cliente-kit/README_USUARIO_FINAL.md).
@@ -11,9 +11,9 @@
 
 ## Download rápido
 
-- [Baixar última release](https://github.com/adventurelabsbrasil/revcalc/releases/latest)
+- [Baixar última release](https://github.com/adventurelabsbrasil/revcalc/releases/latest) *(sem instaladores publicados no momento)*
 - [Baixar código-fonte (ZIP)](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
-- [Ver todas as releases](https://github.com/adventurelabsbrasil/revcalc/releases)
+- [Ver todas as releases](https://github.com/adventurelabsbrasil/revcalc/releases) *(sem assets no momento)*
 
 ---
 
@@ -64,7 +64,7 @@
 
 ### 4) Primeiro teste obrigatório (check rápido)
 
-Após executar, valide na pasta da cliente no Drive:
+Após executar, valide na pasta processada no Drive:
 
 - `10 Cálculo NOME.xlsx`
 - `12 Log.txt`
@@ -84,7 +84,7 @@ Se gerar XLSX mas não gerar `13 Print`, o LibreOffice não está instalado/dete
 - Página principal de download: [https://github.com/adventurelabsbrasil/revcalc/releases/latest](https://github.com/adventurelabsbrasil/revcalc/releases/latest)
 - Código-fonte em ZIP: [https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
 
-> Neste momento, se não houver release publicada, o download disponível é via ZIP do código-fonte (`main.zip`).
+> No momento, não há instaladores publicados em Releases. O download disponível é o ZIP do código-fonte (`main.zip`).
 
 ---
 
@@ -92,7 +92,7 @@ Se gerar XLSX mas não gerar `13 Print`, o LibreOffice não está instalado/dete
 
 ```mermaid
 flowchart LR
-    A([Você digita o nome<br/>da cliente]) --> B{Login Google}
+    A([Você digita o nome<br/>da pasta]) --> B{Login Google}
     B -->|primeira vez| C[Abre o navegador<br/>pra autorizar]
     B -->|já logado| D
     C --> D[App procura a pasta<br/>da cliente no Drive]
@@ -101,7 +101,7 @@ flowchart LR
     F --> G[Calcula parcelas pagas<br/>e excesso da taxa]
     G --> H[Gera 10 Cálculo.xlsx<br/>+ 8 prints PNG + 1 PDF]
     H --> I[Atualiza 12 Log.txt<br/>com histórico append]
-    I --> J([Roselaine revisa<br/>direto no Drive])
+    I --> J([Usuário revisa<br/>direto no Drive])
 ```
 
 **Tempo médio:** 30 a 60 segundos por cálculo (depende da rede e do tamanho do contrato).
@@ -112,15 +112,15 @@ flowchart LR
 
 ### O que você precisa
 
-- **Conta de email da Rose** (`@roseportaladvocacia.com.br`) — login via Google
-- **Pasta da cliente já preparada no Drive**, dentro de `EMPRESTIMO DE ENERGIA/<estado>/<NOME DA CLIENTE>/`, contendo:
+- **Conta Google autorizada** — login via Google
+- **Pasta de trabalho já preparada no Drive**, dentro de `EMPRESTIMO DE ENERGIA/<estado>/<NOME>/`, contendo:
   - `09 Contrato Crefaz.pdf` (ou variação reconhecida)
   - *(opcional)* `11 Series Temporais.pdf` — se não estiver, o app busca automaticamente no repositório central da Rose e copia pra cá
 - **Internet ativa**
 
 ### Se for a primeira vez
 
-Bruna Scopel envia o instalador (`CalculadoraCrefaz.exe` no Windows ou `CalculadoraCrefaz.app` no Mac). Salvar na Área de Trabalho ou pasta de aplicativos.
+A instalação pode ser feita por instalador (quando houver release com binários) ou via `main.zip` com os scripts de `cliente-kit/`.
 
 ---
 
@@ -134,16 +134,15 @@ Clique duas vezes em `CalculadoraCrefaz` na sua Área de Trabalho.
 
 Na primeira execução: clique em **"Entrar com Google"**. Vai abrir o navegador pra você autorizar com seu email da Rose. Depois disso, fica salvo no seu computador.
 
-> O app **só aceita** emails dos domínios `@roseportaladvocacia.com.br` e `@adventurelabs.com.br`.
+> O app aceita apenas contas de email autorizadas na configuração OAuth.
 
 ### 3. Digitar o nome da cliente
 
 Use o **nome completo**, exatamente como está na pasta do Drive (mínimo duas palavras). Exemplos:
 
-- ✅ `IVAN DOS SANTOS`
-- ✅ `Adriano Silva`
-- ❌ `Ivan` (faltou sobrenome)
-- ❌ `cliente teste` (não existe no Drive)
+- ✅ `NOME COMPLETO`
+- ❌ `Nome` (faltou sobrenome)
+- ❌ `teste` (não existe no Drive)
 
 Se você digitar errado, o app sugere nomes parecidos.
 
@@ -153,7 +152,7 @@ A janela mostra cada passo em tempo real:
 
 ```
 [14:32:01] Buscando pasta da cliente no Drive...
-[14:32:02] Pasta encontrada: EMPRESTIMO DE ENERGIA/10. RIO GRANDE DO SUL/IVAN DOS SANTOS
+[14:32:02] Pasta encontrada: EMPRESTIMO DE ENERGIA/UF/NOME COMPLETO
 [14:32:02] Localizando contrato Crefaz...
 [14:32:03] Contrato encontrado: 09 Contrato Crefaz.pdf
 [14:32:04] Contrato lido: cédula 3700123, prazo 24, taxa 18.99%
@@ -161,7 +160,7 @@ A janela mostra cada passo em tempo real:
 [14:32:05] BACEN já na pasta da cliente: 11 Series Temporais.pdf
 [14:32:06] Taxa BACEN para 08/2025: 5.32%
 [14:32:07] Gerando planilha preenchida...
-[14:32:08] Subindo 10 Cálculo IVAN DOS SANTOS.xlsx...
+[14:32:08] Subindo 10 Cálculo NOME COMPLETO.xlsx...
 [14:32:10] Gerando capturas (PDF + 1 PNG)...
 [14:32:13] Capturas regionais (6 blocos)...
 [14:32:18] Capturas concluídas: 11 arquivos.
@@ -226,7 +225,7 @@ Botão **"Sair"** no canto superior direito. Limpa seu login do computador (nece
 
 ## Quando reportar problema
 
-Se aparecer **"Erro inesperado"** ou se um cálculo der número estranho, mande pra Bruna Scopel ou Rodrigo Ribas:
+Se aparecer **"Erro inesperado"** ou se um cálculo der número estranho, envie para o canal interno de suporte:
 
 1. **Nome da cliente** que estava sendo processada
 2. **Print da janela do app** com o log completo
@@ -252,4 +251,4 @@ Roadmap próximo:
 
 ---
 
-*Desenvolvido pela [Adventure Labs](https://adventurelabs.com.br) para a Rose Portal Advocacia. Suporte técnico: Rodrigo Ribas.*
+*Desenvolvido e mantido pela equipe interna responsável pelo sistema.*

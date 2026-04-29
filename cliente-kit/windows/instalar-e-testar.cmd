@@ -41,7 +41,7 @@ start "" "%APP%"
 echo.
 echo App aberto. Agora:
 echo - Clique em "Entrar com Google"
-echo - Rode 1 cliente de teste
+echo - Rode 1 pasta de teste
 echo - Confirme os arquivos 10 Calculo, 12 Log e 13 Print no Drive
 echo.
 pause

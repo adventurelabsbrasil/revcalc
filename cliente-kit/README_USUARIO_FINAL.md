@@ -1,6 +1,6 @@
-# Calculadora Crefaz - Guia de Instalacao e Teste (Usuario Final Rose)
+# Calculadora Crefaz - Guia de Instalacao e Teste (Usuario Final)
 
-Este guia e para o funcionario da Rose que vai instalar e usar a Calculadora Crefaz.
+Este guia e para o usuario final que vai instalar e usar a Calculadora Crefaz.
 
 ## 0) Onde baixar
 
@@ -8,7 +8,7 @@ Este guia e para o funcionario da Rose que vai instalar e usar a Calculadora Cre
 - ZIP do projeto: [https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
 - Releases (instaladores quando publicados): [https://github.com/adventurelabsbrasil/revcalc/releases](https://github.com/adventurelabsbrasil/revcalc/releases)
 
-Se a pagina de Releases ainda estiver vazia, baixe o ZIP (`main.zip`) e use os arquivos do kit.
+No momento, a pagina de Releases esta sem instaladores publicados. Use o ZIP (`main.zip`) e os arquivos do kit.
 
 ## 1) Arquivos que voce deve receber
 
@@ -20,8 +20,8 @@ Se a pagina de Releases ainda estiver vazia, baixe o ZIP (`main.zip`) e use os a
 ## 2) Requisitos
 
 - Internet ativa
-- Conta Google da Rose (`@roseportaladvocacia.com.br`) ou conta autorizada (`@adventurelabs.com.br`)
-- Pasta da cliente no Drive com `09 Contrato Crefaz.pdf`
+- Conta Google autorizada
+- Pasta de trabalho no Drive com `09 Contrato Crefaz.pdf`
 - LibreOffice instalado (necessario para gerar os arquivos de print PDF/PNG)
 
 ## 3) Windows - instalacao
@@ -66,14 +66,14 @@ Na primeira vez: botao direito -> Abrir -> Abrir mesmo assim.
 2. Clique em "Entrar com Google"
 3. Digite o nome completo da cliente
 4. Clique em "Calcular"
-5. Confira no Drive da cliente:
+5. Confira no Drive da pasta processada:
    - `10 Calculo NOME.xlsx`
    - `12 Log.txt`
    - `13 Print ...` (PDF e PNGs)
 
 ## 6) Problemas comuns
 
-- "Pasta nao encontrada": nome da cliente digitado diferente do Drive
+- "Pasta nao encontrada": nome digitado diferente da pasta no Drive
 - "Contrato nao encontrado": arquivo precisa estar como `09 Contrato Crefaz.pdf`
 - "Capturas nao geradas": LibreOffice nao instalado/detectado
 

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# PyInstaller
+dist/
+build/
+*.spec~
+
+# Test fixtures (PDFs reais com PII)
+tests/fixtures/*.pdf
+tests/fixtures/*.xlsx
+!tests/fixtures/.gitkeep
+
+# Local config / secrets
+.env
+.env.local
+~/.calculadora-crefaz/
+
+# OS
+.DS_Store
+Thumbs.db

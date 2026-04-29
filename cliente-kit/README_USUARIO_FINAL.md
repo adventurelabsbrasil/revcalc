@@ -2,6 +2,14 @@
 
 Este guia e para o funcionario da Rose que vai instalar e usar a Calculadora Crefaz.
 
+## 0) Onde baixar
+
+- Repositorio: [https://github.com/adventurelabsbrasil/revcalc](https://github.com/adventurelabsbrasil/revcalc)
+- ZIP do projeto: [https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
+- Releases (instaladores quando publicados): [https://github.com/adventurelabsbrasil/revcalc/releases](https://github.com/adventurelabsbrasil/revcalc/releases)
+
+Se a pagina de Releases ainda estiver vazia, baixe o ZIP (`main.zip`) e use os arquivos do kit.
+
 ## 1) Arquivos que voce deve receber
 
 - `CalculadoraCrefaz.exe` (Windows)

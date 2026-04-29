@@ -5,6 +5,26 @@
 > **Versão atual:** v0.6.0 (2026-04-29). Documentação técnica em [`README_DEV.md`](README_DEV.md).
 > Entrega para usuário final (funcionário da Rose): [`cliente-kit/README_USUARIO_FINAL.md`](cliente-kit/README_USUARIO_FINAL.md).
 
+[![Releases](https://img.shields.io/github/v/release/adventurelabsbrasil/revcalc?display_name=release)](https://github.com/adventurelabsbrasil/revcalc/releases)
+[![Downloads](https://img.shields.io/github/downloads/adventurelabsbrasil/revcalc/total)](https://github.com/adventurelabsbrasil/revcalc/releases)
+[![Baixar ZIP](https://img.shields.io/badge/baixar-codigo_zip-blue)](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
+
+## Download rápido
+
+- [Baixar última release](https://github.com/adventurelabsbrasil/revcalc/releases/latest)
+- [Baixar código-fonte (ZIP)](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
+- [Ver todas as releases](https://github.com/adventurelabsbrasil/revcalc/releases)
+
+---
+
+## Onde baixar
+
+- Repositório: [https://github.com/adventurelabsbrasil/revcalc](https://github.com/adventurelabsbrasil/revcalc)
+- Página principal de download: [https://github.com/adventurelabsbrasil/revcalc/releases/latest](https://github.com/adventurelabsbrasil/revcalc/releases/latest)
+- Código-fonte em ZIP: [https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
+
+> Neste momento, se não houver release publicada, o download disponível é via ZIP do código-fonte (`main.zip`).
+
 ---
 
 ## Como funciona

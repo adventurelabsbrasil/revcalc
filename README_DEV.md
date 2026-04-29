@@ -3,6 +3,8 @@
 > Aplicação desktop Tkinter + Google Drive + openpyxl + LibreOffice headless. Cliente: **Rose Portal Advocacia**. Stack: Python 3.11+. MVP focado em rigor estrutural nos dados.
 >
 > Instalação via terminal / o que o sistema faz: ver o [`README.md`](README.md) na raiz. Documentação operacional pra quem só usa binário: [`cliente-kit/README_USUARIO_FINAL.md`](cliente-kit/README_USUARIO_FINAL.md).
+>
+> **Arranque:** `python -m calculadora_crefaz` chama `preflight.py` (Python ≥ 3.11, imports, aviso LibreOffice). Para pular: `REVCALC_SKIP_PREFLIGHT=1` (só debug). No `.exe` empacotado, o preflight não bloqueia.
 > Estado atual e roadmap em [`docs/ESTADO_ATUAL.md`](docs/ESTADO_ATUAL.md).
 
 ---

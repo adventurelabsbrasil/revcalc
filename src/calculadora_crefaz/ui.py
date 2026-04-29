@@ -45,6 +45,20 @@ class CalculadoraApp:
         style = ttk.Style()
         style.theme_use("aqua" if "aqua" in style.theme_names() else style.theme_use())
 
+        menubar = tk.Menu(self.root)
+        menu_ajuda = tk.Menu(menubar, tearoff=0)
+        menu_ajuda.add_command(label="Sobre…", command=self._mostrar_sobre)
+        menubar.add_cascade(label="Ajuda", menu=menu_ajuda)
+        self.root.config(menu=menubar)
+
+        self._footer = ttk.Label(
+            self.root,
+            text=f"© 2026 Adventure Labs · Rose Portal Advocacia · v{__version__}",
+            font=("TkDefaultFont", 9),
+            foreground="#555555",
+        )
+        self._footer.pack(side="bottom", fill="x", padx=12, pady=(0, 8))
+
         # Frame topo: status do login
         self.frame_login = ttk.Frame(self.root, padding=(12, 10))
         self.frame_login.pack(fill="x")
@@ -104,6 +118,17 @@ class CalculadoraApp:
 
         # Estado inicial: input desabilitado até login
         self._set_logado(False)
+
+    def _mostrar_sobre(self) -> None:
+        messagebox.showinfo(
+            "Sobre a Calculadora Crefaz",
+            f"Calculadora de Ação Crefaz\n"
+            f"Versão {__version__}\n\n"
+            "Desenvolvida pela Adventure Labs\n"
+            "para a Rose Portal Advocacia.\n\n"
+            "© 2026 Adventure Labs\n"
+            "adventurelabs.com.br",
+        )
 
     def _set_logado(self, logado: bool) -> None:
         if logado and self.sessao:

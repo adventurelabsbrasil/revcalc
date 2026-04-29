@@ -1,6 +1,6 @@
 # Calculadora de Ação Crefaz
 
-**Versão atual:** `v0.6.1` · **Cliente:** Rose Portal Advocacia  
+**Versão atual:** `v0.6.2` · **Cliente:** Rose Portal Advocacia  
 
 Ferramenta desktop que automatiza o cálculo de revisão de contratos **Crefaz**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica.
 
@@ -51,14 +51,43 @@ Use este fluxo quando quiser rodar **a mesma árvore que está na branch `main`*
 | Item | Observação |
 |------|------------|
 | **Git** | Para `git clone`. |
-| **Python 3.11+** | Check: `python --version` ou `py -3.11 --version`. |
+| **Python 3.11+** | Obrigatório antes de qualquer comando `pip` ou `python -m …`. |
 | **LibreOffice** | Necessário para gerar **`13 Print`**. Sem ele, só XLSX + log. |
 
 **Credenciais Google OAuth:** o app espera arquivo de cliente/credencial conforme o projeto (`cliente_secret.json` ou variáveis `.env`). O detalhe de nomes de arquivo e scopes está em **`README_DEV.md`** — não commitar secrets.
 
 ---
 
-### Windows (CMD ou PowerShell)
+### ⚠️ Windows: instale o Python **antes** do resto
+
+Se o terminal disser que **`python` / `py` não é reconhecido**, nada do fluxo abaixo vai funcionar até corrigir isso.
+
+1. Baixe o instalador oficial: [**python.org/downloads/windows**](https://www.python.org/downloads/windows/) (**Python 3.11 ou 3.12**).
+2. Na primeira tela do instalador, marque **“Add python.exe to PATH”** e conclua a instalação.
+3. **Feche e abra de novo** o CMD ou PowerShell (PATH só atualiza assim).
+4. Confira:
+
+```bat
+py --version
+```
+
+ou
+
+```bat
+python --version
+```
+
+Alternativa pelo **winget** (CMD **como Administrador**):
+
+```bat
+winget install Python.Python.3.12
+```
+
+Depois disso, continue na seção **“Windows (clone e venv)”** abaixo.
+
+---
+
+### Windows (clone e venv)
 
 Abra **CMD** ou **PowerShell** na pasta onde quer o projeto:
 
@@ -194,4 +223,28 @@ Envie nome da cliente, captura da janela com o log completo e data/hora. Evite e
 
 ---
 
-© **2026** · **Adventure Labs** — Calculadora de Ação Crefaz · **v0.6.1**
+© **2026** · **Adventure Labs** — Calculadora de Ação Crefaz · **v0.6.2**
+
+---
+
+## Terminal: quando “pip” ou “python” falham
+
+Ao rodar `python -m calculadora_crefaz`, o projeto faz uma **checagem rápida** e imprime no terminal:
+
+- **Banner** com Adventure Labs + versão (stderr).
+- **Erro claro** se o Python for anterior ao 3.11 ou faltarem pacotes (`pip install …`).
+- **Aviso** se não achar LibreOffice no PATH (capturas podem falhar — não bloqueia abrir o app).
+
+**Dependências faltando:** na pasta `revcalc`, com `.venv` ativado:
+
+```bat
+pip install -U pip
+pip install -e ".[dev]"
+```
+
+**Só para diagnóstico avançado:** ignorar a checagem (não recomendado):
+
+```bat
+set REVCALC_SKIP_PREFLIGHT=1
+python -m calculadora_crefaz
+```

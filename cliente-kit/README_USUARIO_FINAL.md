@@ -8,7 +8,9 @@ Este guia e para o usuario final que vai instalar e usar a Calculadora Crefaz.
 - ZIP do projeto: [https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
 - Releases (instaladores quando publicados): [https://github.com/adventurelabsbrasil/revcalc/releases](https://github.com/adventurelabsbrasil/revcalc/releases)
 
-No momento, a pagina de Releases esta sem instaladores publicados. Use o ZIP (`main.zip`) e os arquivos do kit.
+Status atual da pagina de Releases:
+- macOS: instalador disponivel
+- Windows: sem instalador publicado no momento (usar ZIP + arquivos do kit)
 
 ## 1) Arquivos que voce deve receber
 

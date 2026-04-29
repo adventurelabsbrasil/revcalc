@@ -11,9 +11,9 @@
 
 ## Download rápido
 
-- [Baixar última release](https://github.com/adventurelabsbrasil/revcalc/releases/latest) *(sem instaladores publicados no momento)*
+- [Baixar última release](https://github.com/adventurelabsbrasil/revcalc/releases/latest) *(macOS disponível)*
 - [Baixar código-fonte (ZIP)](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
-- [Ver todas as releases](https://github.com/adventurelabsbrasil/revcalc/releases) *(sem assets no momento)*
+- [Ver todas as releases](https://github.com/adventurelabsbrasil/revcalc/releases)
 
 ---
 
@@ -84,7 +84,7 @@ Se gerar XLSX mas não gerar `13 Print`, o LibreOffice não está instalado/dete
 - Página principal de download: [https://github.com/adventurelabsbrasil/revcalc/releases/latest](https://github.com/adventurelabsbrasil/revcalc/releases/latest)
 - Código-fonte em ZIP: [https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
 
-> No momento, não há instaladores publicados em Releases. O download disponível é o ZIP do código-fonte (`main.zip`).
+> Status atual de binários em Releases: macOS disponível (`CalculadoraCrefaz-macos-arm64.zip`) e Windows ainda pendente.
 
 ---
 

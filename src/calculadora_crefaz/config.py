@@ -187,8 +187,8 @@ REGIOES_CALCULO = {
     "01 Dados do Contrato":      "C6:Y18",   # bloco esquerdo top — header azul + 12 valores
     "02 Valores Recalculados":   "AD6:AZ19", # bloco centro top — taxa BACEN + diferenças
     "03 Saldo Recalculado":      "BE6:CB19", # bloco direito top — saldo + sub-quadro controvertido
-    "04 Conforme Pactuado":      "C25:Y49",  # bloco esquerdo bottom — fórmula PMT taxa contrato
-    "05 Parcela Taxa Media":     "AD25:AZ49",# bloco centro bottom — fórmula PMT taxa BACEN
+    "04 Conforme Pactuado":      "C25:Y121",  # bloco esquerdo bottom — fórmula PMT taxa contrato
+    "05 Parcela Taxa Media":     "AD25:AZ121",# bloco centro bottom — fórmula PMT taxa BACEN
     "06 Percentual + Indevidas": "BE29:CB31",# 2 caixinhas lado a lado: % superior à média + total indevidas (incl. borda inferior)
 }
 
@@ -198,10 +198,14 @@ CAPTURAS_PDF = {
     "07 Item II do Contrato": {
         "tipo": "contrato",  # PDF baixado do Drive como `contrato_arquivo`
         "marcador_regex": r"II\.?\s*EMPR[ÉE]STIMO\s+CONCEDIDO",
+        "marcador_fim_regex": r"III\.?\s*CUSTO\s+EFETIVO\s+TOTAL",
+        "altura_fallback_ratio": 0.50,
     },
     "08 Series BACEN": {
         "tipo": "bacen",  # PDF BACEN (já em memória durante o pipeline)
         "marcador_regex": r"S[ée]ries?\s+selecionadas?",
+        "marcador_fim_regex": r"Fonte|Elabora[çc][ãa]o|Banco\s+Central",
+        "altura_fallback_ratio": 0.60,
     },
 }
 

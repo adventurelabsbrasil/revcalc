@@ -26,6 +26,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -248,6 +249,30 @@ def _trim_whitespace(png_bytes: bytes, *, padding_px: int = 12) -> tuple[bytes, 
     return buf.getvalue(), cropped.size[0], cropped.size[1]
 
 
+def _concat_pngs_verticalmente(
+    paginas_raw: list[tuple[bytes, int, int]],
+) -> tuple[bytes, int, int]:
+    """Concatena páginas PNG verticalmente em uma única imagem."""
+    import io
+    from PIL import Image
+
+    if not paginas_raw:
+        raise CapturasError("Sem páginas para concatenar.")
+
+    imagens = [Image.open(io.BytesIO(png)).convert("RGB") for png, _, _ in paginas_raw]
+    largura = max(img.size[0] for img in imagens)
+    altura = sum(img.size[1] for img in imagens)
+    canvas = Image.new("RGB", (largura, altura), (255, 255, 255))
+    y = 0
+    for img in imagens:
+        canvas.paste(img, (0, y))
+        y += img.size[1]
+
+    out = io.BytesIO()
+    canvas.save(out, format="PNG", optimize=True)
+    return out.getvalue(), largura, altura
+
+
 def gerar_capturas_regionais(
     xlsx_bytes: bytes,
     regioes: dict[str, str],
@@ -255,6 +280,7 @@ def gerar_capturas_regionais(
     nome_aba: str = "CÁLCULO",
     dpi: int = 150,
     trim: bool = True,
+    on_status: Callable[[str], None] | None = None,
 ) -> list[CapturaPng]:
     """Gera 1 PNG por região, alterando print_area temporariamente.
 
@@ -283,7 +309,10 @@ def gerar_capturas_regionais(
     from openpyxl.utils import column_index_from_string, range_boundaries
 
     saidas: list[CapturaPng] = []
-    for label, range_xlsx in regioes.items():
+    total = len(regioes)
+    for idx, (label, range_xlsx) in enumerate(regioes.items(), start=1):
+        if on_status:
+            on_status(f"Captura regional {idx}/{total}: {label}...")
         # 1. Carrega + ajusta print_area
         wb = load_workbook(BytesIO(xlsx_bytes))
         if nome_aba not in wb.sheetnames:
@@ -321,9 +350,11 @@ def gerar_capturas_regionais(
             h = ws.row_dimensions[r].height
             if h is None or h < altura_min_pt:
                 ws.row_dimensions[r].height = altura_min_pt
-        # Cabe em 1 página
+        # Blocos matemáticos longos: permitir múltiplas páginas e concatenar depois.
+        bloco_longo = label in ("04 Conforme Pactuado", "05 Parcela Taxa Media")
+        # Cabe em 1 página (default)
         ws.page_setup.fitToWidth = 1
-        ws.page_setup.fitToHeight = 1
+        ws.page_setup.fitToHeight = 2 if bloco_longo else 1
         ws.sheet_properties.pageSetUpPr.fitToPage = True
         # Limpa header/footer pra não aparecer "Cálculo de Ação Crefaz" / "Página 1 de 1"
         for hf_attr in ("oddHeader", "oddFooter", "evenHeader", "evenFooter"):
@@ -352,14 +383,21 @@ def gerar_capturas_regionais(
             paginas_raw = _pdf_para_pngs(pdf_bytes, dpi=dpi)
         except CapturasError as e:
             logger.warning("Falha ao gerar região %s (%s): %s", label, range_xlsx, e)
+            if on_status:
+                on_status(f"Captura regional {idx}/{total} falhou: {label}.")
             continue
 
         if not paginas_raw:
             logger.warning("Região %s gerou 0 páginas — ignorada.", label)
+            if on_status:
+                on_status(f"Captura regional {idx}/{total} sem páginas: {label}.")
             continue
 
-        # 3. Primeira página + trim
-        png_bytes, w, h = paginas_raw[0]
+        # 3. Primeira página (default) ou concatenação vertical (blocos longos)
+        if bloco_longo and len(paginas_raw) > 1:
+            png_bytes, w, h = _concat_pngs_verticalmente(paginas_raw)
+        else:
+            png_bytes, w, h = paginas_raw[0]
         if trim:
             png_bytes, w, h = _trim_whitespace(png_bytes)
         nome = f"13 Print {label}.png"
@@ -376,6 +414,8 @@ def gerar_capturas_regionais(
             "Região %s capturada: %s (%dx%d, %d KB)",
             label, nome, w, h, len(png_bytes) // 1024,
         )
+        if on_status:
+            on_status(f"Captura regional {idx}/{total} concluída: {label}.")
 
     return saidas
 
@@ -389,6 +429,8 @@ def capturar_pagina_pdf(
     nome_arquivo: str,
     *,
     dpi: int = 150,
+    marcador_fim_regex: str | None = None,
+    altura_fallback_ratio: float = 0.50,
 ) -> CapturaPng | None:
     """Captura como PNG a primeira página do PDF que contém o marcador.
 
@@ -414,13 +456,28 @@ def capturar_pagina_pdf(
 
     pattern = re.compile(marcador_regex, re.IGNORECASE)
 
-    # Procura página por página
+    # Procura página por página + localização vertical dos marcadores
     pagina_alvo: int | None = None  # 0-indexed
+    y_inicio: float | None = None
+    y_fim: float | None = None
+    fim_pattern = re.compile(marcador_fim_regex, re.IGNORECASE) if marcador_fim_regex else None
+
     with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
         for i, page in enumerate(pdf.pages):
             texto = page.extract_text() or ""
             if pattern.search(texto):
                 pagina_alvo = i
+                try:
+                    words = page.extract_words() or []
+                except Exception:
+                    words = []
+                tops = [w["top"] for w in words if pattern.search(w.get("text", ""))]
+                if tops:
+                    y_inicio = max(0.0, min(tops) - 10.0)
+                if fim_pattern:
+                    bottoms = [w["bottom"] for w in words if fim_pattern.search(w.get("text", ""))]
+                    if bottoms:
+                        y_fim = max(bottoms) + 12.0
                 break
 
     if pagina_alvo is None:
@@ -430,10 +487,21 @@ def capturar_pagina_pdf(
         )
         return None
 
-    # Renderiza a página alvo
+    # Renderiza a página alvo (apenas bloco, não página inteira)
     pdf = pdfium.PdfDocument(pdf_bytes)
     page = pdf[pagina_alvo]
-    img = page.render(scale=dpi / 72.0).to_pil()
+    page_h = float(page.get_height())
+    if y_inicio is None:
+        y_inicio = 0.0
+    if y_fim is None or y_fim <= y_inicio:
+        y_fim = min(page_h, y_inicio + page_h * altura_fallback_ratio)
+    y_inicio = max(0.0, min(y_inicio, page_h))
+    y_fim = max(y_inicio + 10.0, min(y_fim, page_h))
+
+    img = page.render(
+        scale=dpi / 72.0,
+        crop=(0.0, y_inicio, float(page.get_width()), y_fim),
+    ).to_pil()
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
     png_bytes = buf.getvalue()

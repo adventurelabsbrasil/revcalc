@@ -238,7 +238,12 @@ def executar(
 
         # 12c. Capturas regionais (6 blocos da aba CÁLCULO)
         status("Gerando capturas regionais (6 blocos)...")
-        regionais = gerar_capturas_regionais(xlsx_bytes, REGIOES_CALCULO, nome_aba=aba)
+        regionais = gerar_capturas_regionais(
+            xlsx_bytes,
+            REGIOES_CALCULO,
+            nome_aba=aba,
+            on_status=status,
+        )
         for png in regionais:
             _, png_sobrescrito = drive.subir_ou_sobrescrever(
                 service, pasta.id, png.nome_arquivo, png.bytes_, "image/png"
@@ -252,6 +257,8 @@ def executar(
         for label, conf in CAPTURAS_PDF.items():
             tipo = conf["tipo"]
             regex = conf["marcador_regex"]
+            regex_fim = conf.get("marcador_fim_regex")
+            altura_fallback_ratio = conf.get("altura_fallback_ratio", 0.50)
             nome_png = f"13 Print {label}.png"
             if tipo == "contrato":
                 pdf_src = pdf_bytes  # bytes do contrato Crefaz já baixado
@@ -261,7 +268,13 @@ def executar(
                 aviso(f"Tipo de captura PDF desconhecido: {tipo!r} — ignorando {label}.")
                 continue
             try:
-                png = capturar_pagina_pdf(pdf_src, regex, nome_png)
+                png = capturar_pagina_pdf(
+                    pdf_src,
+                    regex,
+                    nome_png,
+                    marcador_fim_regex=regex_fim,
+                    altura_fallback_ratio=altura_fallback_ratio,
+                )
             except CapturasError as e:
                 aviso(f"Captura PDF {label} falhou: {e}")
                 continue

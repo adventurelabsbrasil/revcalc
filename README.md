@@ -17,6 +17,67 @@
 
 ---
 
+## Instalação e início (Windows e macOS)
+
+### 1) Escolha seu cenário de download
+
+- **Se a release tiver instaladores** (`CalculadoraCrefaz.exe` e/ou `CalculadoraCrefaz.app.zip`): baixe pela página de release e siga os passos do seu sistema abaixo.
+- **Se a release ainda não tiver instaladores**: baixe o `main.zip` e use os scripts em `cliente-kit/`.
+
+### 2) Windows
+
+#### Opção A — com instalador da release
+
+1. Baixe `CalculadoraCrefaz.exe` em [Releases](https://github.com/adventurelabsbrasil/revcalc/releases/latest)
+2. Instale o LibreOffice (obrigatório para capturas PDF/PNG):
+   - CMD (Administrador):
+   ```bat
+   winget install --id TheDocumentFoundation.LibreOffice -e --source winget
+   ```
+3. Abra `CalculadoraCrefaz.exe`
+4. Faça login Google e rode 1 cálculo de teste
+
+#### Opção B — via ZIP (o que já está pronto hoje)
+
+1. Baixe e extraia `main.zip`
+2. Entre em `cliente-kit/windows/`
+3. Execute `instalar-e-testar.cmd` como Administrador
+
+### 3) macOS
+
+#### Opção A — com instalador da release
+
+1. Baixe `CalculadoraCrefaz.app.zip` em [Releases](https://github.com/adventurelabsbrasil/revcalc/releases/latest)
+2. Extraia o `.zip`
+3. Instale o LibreOffice:
+   ```bash
+   brew install --cask libreoffice
+   ```
+4. Abra `CalculadoraCrefaz.app` (primeira vez: botão direito -> Abrir)
+5. Faça login Google e rode 1 cálculo de teste
+
+#### Opção B — via ZIP (o que já está pronto hoje)
+
+1. Baixe e extraia `main.zip`
+2. Entre em `cliente-kit/macos/`
+3. Rode `instalar-e-testar.command`
+
+### 4) Primeiro teste obrigatório (check rápido)
+
+Após executar, valide na pasta da cliente no Drive:
+
+- `10 Cálculo NOME.xlsx`
+- `12 Log.txt`
+- arquivos `13 Print ...` (PDF + PNG)
+
+Se gerar XLSX mas não gerar `13 Print`, o LibreOffice não está instalado/detectado.
+
+### 5) Link direto para o guia do usuário final
+
+- [`cliente-kit/README_USUARIO_FINAL.md`](cliente-kit/README_USUARIO_FINAL.md)
+
+---
+
 ## Onde baixar
 
 - Repositório: [https://github.com/adventurelabsbrasil/revcalc](https://github.com/adventurelabsbrasil/revcalc)

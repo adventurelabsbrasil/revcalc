@@ -1,254 +1,197 @@
 # Calculadora de Ação Crefaz
 
-> Ferramenta interna para automatizar cálculo de revisão de contratos Crefaz. Você informa o nome da pasta no Drive, o app lê o contrato em PDF, busca a taxa BACEN do mês correto e gera planilha + capturas para conferência.
+**Versão atual:** `v0.6.1` · **Cliente:** Rose Portal Advocacia  
 
-> **Versão atual:** v0.6.0 (2026-04-29). Documentação técnica em [`README_DEV.md`](README_DEV.md).
-> Entrega para usuário final (funcionário da Rose): [`cliente-kit/README_USUARIO_FINAL.md`](cliente-kit/README_USUARIO_FINAL.md).
+Ferramenta desktop que automatiza o cálculo de revisão de contratos **Crefaz**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica.
+
+**Docs adicionais (detalhes e edge cases):**
+
+- Técnico / PyInstaller / estrutura do repo → [`README_DEV.md`](README_DEV.md)
+- Fluxo pensado para quem só instala binário + kit Rose → [`cliente-kit/README_USUARIO_FINAL.md`](cliente-kit/README_USUARIO_FINAL.md)
 
 [![Releases](https://img.shields.io/github/v/release/adventurelabsbrasil/revcalc?display_name=release)](https://github.com/adventurelabsbrasil/revcalc/releases)
-[![Downloads](https://img.shields.io/github/downloads/adventurelabsbrasil/revcalc/total)](https://github.com/adventurelabsbrasil/revcalc/releases)
 [![Baixar ZIP](https://img.shields.io/badge/baixar-codigo_zip-blue)](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
 
-## Download rápido
-
-- [Baixar última release](https://github.com/adventurelabsbrasil/revcalc/releases/latest) *(macOS disponível)*
-- [Baixar código-fonte (ZIP)](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
-- [Ver todas as releases](https://github.com/adventurelabsbrasil/revcalc/releases)
-
 ---
 
-## Instalação e início (Windows e macOS)
+## O que o sistema faz (resumo)
 
-### 1) Escolha seu cenário de download
+1. Login **Google OAuth** (contas autorizadas na configuração do app).
+2. Busca da pasta da cliente em `EMPRESTIMO DE ENERGIA/<UF>/<NOME>/` no Drive.
+3. Leitura do **`09 Contrato Crefaz.pdf`**, parsing do Item II e dos dados financeiros.
+4. Uso da taxa **BACEN** (PDF **`11 Series Temporais.pdf`** na pasta ou cópia do repositório central da Rose quando faltar).
+5. Geração do **`10 Cálculo …xlsx`**, **`12 Log.txt`** (append) e arquivos **`13 Print …`** (planilha + blocos regionais + trechos dos PDFs).
 
-- **Se a release tiver instaladores** (`CalculadoraCrefaz.exe` e/ou `CalculadoraCrefaz.app.zip`): baixe pela página de release e siga os passos do seu sistema abaixo.
-- **Se a release ainda não tiver instaladores**: baixe o `main.zip` e use os scripts em `cliente-kit/`.
+**Tempo médio:** cerca de 30–60 segundos por execução (rede + tamanho do PDF).
 
-### 2) Windows
-
-#### Opção A — com instalador da release
-
-1. Baixe `CalculadoraCrefaz.exe` em [Releases](https://github.com/adventurelabsbrasil/revcalc/releases/latest)
-2. Instale o LibreOffice (obrigatório para capturas PDF/PNG):
-   - CMD (Administrador):
-   ```bat
-   winget install --id TheDocumentFoundation.LibreOffice -e --source winget
-   ```
-3. Abra `CalculadoraCrefaz.exe`
-4. Faça login Google e rode 1 cálculo de teste
-
-#### Opção B — via ZIP (o que já está pronto hoje)
-
-1. Baixe e extraia `main.zip`
-2. Entre em `cliente-kit/windows/`
-3. Execute `instalar-e-testar.cmd` como Administrador
-
-### 3) macOS
-
-#### Opção A — com instalador da release
-
-1. Baixe `CalculadoraCrefaz.app.zip` em [Releases](https://github.com/adventurelabsbrasil/revcalc/releases/latest)
-2. Extraia o `.zip`
-3. Instale o LibreOffice:
-   ```bash
-   brew install --cask libreoffice
-   ```
-4. Abra `CalculadoraCrefaz.app` (primeira vez: botão direito -> Abrir)
-5. Faça login Google e rode 1 cálculo de teste
-
-#### Opção B — via ZIP (o que já está pronto hoje)
-
-1. Baixe e extraia `main.zip`
-2. Entre em `cliente-kit/macos/`
-3. Rode `instalar-e-testar.command`
-
-### 4) Primeiro teste obrigatório (check rápido)
-
-Após executar, valide na pasta processada no Drive:
-
-- `10 Cálculo NOME.xlsx`
-- `12 Log.txt`
-- arquivos `13 Print ...` (PDF + PNG)
-
-Se gerar XLSX mas não gerar `13 Print`, o LibreOffice não está instalado/detectado.
-
-### 5) Link direto para o guia do usuário final
-
-- [`cliente-kit/README_USUARIO_FINAL.md`](cliente-kit/README_USUARIO_FINAL.md)
-
----
-
-## Onde baixar
-
-- Repositório: [https://github.com/adventurelabsbrasil/revcalc](https://github.com/adventurelabsbrasil/revcalc)
-- Página principal de download: [https://github.com/adventurelabsbrasil/revcalc/releases/latest](https://github.com/adventurelabsbrasil/revcalc/releases/latest)
-- Código-fonte em ZIP: [https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
-
-> Status atual de binários em Releases: macOS disponível (`CalculadoraCrefaz-macos-arm64.zip`) e Windows ainda pendente.
-
----
-
-## Como funciona
+### Fluxo visual
 
 ```mermaid
 flowchart LR
-    A([Você digita o nome<br/>da pasta]) --> B{Login Google}
-    B -->|primeira vez| C[Abre o navegador<br/>pra autorizar]
-    B -->|já logado| D
-    C --> D[App procura a pasta<br/>da cliente no Drive]
-    D --> E[Lê o PDF do<br/>09 Contrato Crefaz]
-    E --> F[Lê a taxa BACEN<br/>do mês de emissão]
-    F --> G[Calcula parcelas pagas<br/>e excesso da taxa]
-    G --> H[Gera 10 Cálculo.xlsx<br/>+ 8 prints PNG + 1 PDF]
-    H --> I[Atualiza 12 Log.txt<br/>com histórico append]
-    I --> J([Usuário revisa<br/>direto no Drive])
+    A([Nome da pasta no Drive]) --> B{Login Google}
+    B -->|primeira vez| C[Autorizar no navegador]
+    B -->|sessão OK| D[Localiza pasta …/UF/cliente]
+    C --> D
+    D --> E[Lê contrato PDF]
+    E --> F[Resolve BACEN]
+    F --> G[Gera planilha + capturas]
+    G --> H[Escreve PDF/PNG/log na pasta]
 ```
 
-**Tempo médio:** 30 a 60 segundos por cálculo (depende da rede e do tamanho do contrato).
+**Sem LibreOffice instalado**, o app ainda gera **XLSX + log**, mas pode **omitir** as capturas `13 Print` até o LibreOffice ficar instalado e disponível ao processo (`soffice` no PATH no Windows/Linux).
 
 ---
 
-## Antes de começar
+## Como instalar (recomendado: terminal + código-fonte)
 
-### O que você precisa
+Use este fluxo quando quiser rodar **a mesma árvore que está na branch `main`**, sem depender de `.exe` na página de Releases.
 
-- **Conta Google autorizada** — login via Google
-- **Pasta de trabalho já preparada no Drive**, dentro de `EMPRESTIMO DE ENERGIA/<estado>/<NOME>/`, contendo:
-  - `09 Contrato Crefaz.pdf` (ou variação reconhecida)
-  - *(opcional)* `11 Series Temporais.pdf` — se não estiver, o app busca automaticamente no repositório central da Rose e copia pra cá
-- **Internet ativa**
+### Pré-requisitos em qualquer sistema
 
-### Se for a primeira vez
+| Item | Observação |
+|------|------------|
+| **Git** | Para `git clone`. |
+| **Python 3.11+** | Check: `python --version` ou `py -3.11 --version`. |
+| **LibreOffice** | Necessário para gerar **`13 Print`**. Sem ele, só XLSX + log. |
 
-A instalação pode ser feita por instalador (quando houver release com binários) ou via `main.zip` com os scripts de `cliente-kit/`.
+**Credenciais Google OAuth:** o app espera arquivo de cliente/credencial conforme o projeto (`cliente_secret.json` ou variáveis `.env`). O detalhe de nomes de arquivo e scopes está em **`README_DEV.md`** — não commitar secrets.
 
 ---
 
-## Como usar — passo a passo
+### Windows (CMD ou PowerShell)
 
-### 1. Abrir o app
+Abra **CMD** ou **PowerShell** na pasta onde quer o projeto:
 
-Clique duas vezes em `CalculadoraCrefaz` na sua Área de Trabalho.
+```bat
+git clone https://github.com/adventurelabsbrasil/revcalc.git
+cd revcalc
 
-### 2. Entrar com Google
-
-Na primeira execução: clique em **"Entrar com Google"**. Vai abrir o navegador pra você autorizar com seu email da Rose. Depois disso, fica salvo no seu computador.
-
-> O app aceita apenas contas de email autorizadas na configuração OAuth.
-
-### 3. Digitar o nome da cliente
-
-Use o **nome completo**, exatamente como está na pasta do Drive (mínimo duas palavras). Exemplos:
-
-- ✅ `NOME COMPLETO`
-- ❌ `Nome` (faltou sobrenome)
-- ❌ `teste` (não existe no Drive)
-
-Se você digitar errado, o app sugere nomes parecidos.
-
-### 4. Apertar "Calcular" (ou Enter)
-
-A janela mostra cada passo em tempo real:
-
-```
-[14:32:01] Buscando pasta da cliente no Drive...
-[14:32:02] Pasta encontrada: EMPRESTIMO DE ENERGIA/UF/NOME COMPLETO
-[14:32:02] Localizando contrato Crefaz...
-[14:32:03] Contrato encontrado: 09 Contrato Crefaz.pdf
-[14:32:04] Contrato lido: cédula 3700123, prazo 24, taxa 18.99%
-[14:32:04] Parcelas pagas até hoje: 8 | aba: CÁLCULO
-[14:32:05] BACEN já na pasta da cliente: 11 Series Temporais.pdf
-[14:32:06] Taxa BACEN para 08/2025: 5.32%
-[14:32:07] Gerando planilha preenchida...
-[14:32:08] Subindo 10 Cálculo NOME COMPLETO.xlsx...
-[14:32:10] Gerando capturas (PDF + 1 PNG)...
-[14:32:13] Capturas regionais (6 blocos)...
-[14:32:18] Capturas concluídas: 11 arquivos.
-[14:32:20] ✓ Pronto.
+py -3.11 -m venv .venv
+.venv\Scripts\activate
+python -m pip install -U pip
+pip install -e ".[dev]"
 ```
 
-### 5. Conferir no Drive
+**(Opcional, recomendado para capturas)** — LibreOffice pelo `winget` (CMD **como Administrador**):
 
-Clique em **"Abrir pasta no Drive"**. Você vai encontrar:
-
-```
-EMPRESTIMO DE ENERGIA/<estado>/<NOME DA CLIENTE>/
-├── 09 Contrato Crefaz.pdf       (você subiu)
-├── 10 Cálculo NOME.xlsx          (gerado pelo app — abre como Sheets)
-├── 11 Series Temporais.pdf       (você subiu ou app copiou)
-├── 12 Log.txt                     (histórico — modo append)
-├── 13 Print CÁLCULO.pdf           (PDF unificado da planilha)
-├── 13 Print CÁLCULO.png           (página inteira em PNG)
-├── 13 Print 01 Dados do Contrato.png
-├── 13 Print 02 Valores Recalculados.png
-├── 13 Print 03 Saldo Recalculado.png
-├── 13 Print 04 Conforme Pactuado.png
-├── 13 Print 05 Parcela Taxa Media.png
-├── 13 Print 06 Percentual + Indevidas.png
-├── 13 Print 07 Item II do Contrato.png   (do PDF do contrato)
-└── 13 Print 08 Series BACEN.png          (do PDF BACEN)
+```bat
+winget install --id TheDocumentFoundation.LibreOffice -e --source winget
 ```
 
-> Roselaine pode abrir o XLSX como **Sheets** (preview no Drive) ou baixar e abrir no **Excel** local. Ambos mostram a planilha com cálculo automático. Os PNGs servem como print-prontos pra arquivar/peticionar.
+Coloque **`soffice.exe`** no **PATH** (normalmente algo como  
+`C:\Program Files\LibreOffice\program\`) ou o app pode não encontrar o conversor para PDF.
+
+Rodar o app:
+
+```bat
+python -m calculadora_crefaz
+```
+
+**Gerar `.exe` localmente** (mesmo `pyinstaller.spec` do projeto):
+
+```bat
+pip install pyinstaller
+pyinstaller pyinstaller.spec
+```
+
+O binário sai em **`dist\CalculadoraCrefaz.exe`**. Mais detalhes em [`README_DEV.md`](README_DEV.md).
 
 ---
 
-## Mensagens que você pode encontrar
+### macOS / Linux (bash ou zsh)
 
-### ✓ Verde (tudo certo)
-- `Pasta encontrada` / `Contrato lido` / `Pronto`
+```bash
+git clone https://github.com/adventurelabsbrasil/revcalc.git
+cd revcalc
 
-### ⚠️ Amarelo (atenção, mas seguiu)
-- `BACEN não estava na pasta da cliente. O sistema baixou do repositório central e gravou aqui automaticamente.` — recomendação: incluir o PDF manualmente da próxima vez (fonte oficial)
-- `Cálculo já existe (modificado em ...). Deseja sobrescrever?` — pop-up de confirmação. Sim sobrescreve, não cancela
-- `Capturas não geradas: ...` — XLSX e log seguem normais, mas os PNGs/PDF não foram gerados (provavelmente LibreOffice não está instalado no Mac/Win local)
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+pip install -e ".[dev]"
+```
 
-### ✗ Vermelho (erro, parou)
+**(macOS) LibreOffice:**
 
-| Mensagem | O que significa | O que fazer |
-|----------|----------------|-------------|
-| **Pasta não encontrada** | Nome digitado não bate nenhuma pasta no Drive | Conferir grafia exata. App sugere nomes parecidos |
-| **Pasta ambígua** | Mesmo nome em mais de um estado | Refazer com nome mais específico |
-| **Contrato não encontrado** | Nenhum PDF na pasta casa "Contrato Crefaz" | Renomear o arquivo pra `09 Contrato Crefaz.pdf` antes de tentar |
-| **Vários contratos** | Mais de um candidato a contrato | App escolhe o mais provável; se não for o certo, renomear os outros pra outro padrão |
-| **Erro ao ler contrato** | PDF está corrompido ou Item II faltando | Conferir se o PDF abre normalmente |
-| **BACEN não encontrado** | Mês/ano da emissão não tem PDF disponível em lugar nenhum | Falar com a equipe da Rose pra subir o PDF do BACEN do mês |
-| **Prazo não suportado** | Contrato com mais de 24 parcelas (Crefaz só opera até 24) | Abrir issue se for caso real |
+```bash
+brew install --cask libreoffice
+```
 
----
+Rodar:
 
-## Logout
-
-Botão **"Sair"** no canto superior direito. Limpa seu login do computador (necessário só se você for trocar de conta ou emprestar a máquina).
+```bash
+python -m calculadora_crefaz
+```
 
 ---
 
-## Quando reportar problema
+### Sem Git: apenas ZIP da `main`
 
-Se aparecer **"Erro inesperado"** ou se um cálculo der número estranho, envie para o canal interno de suporte:
-
-1. **Nome da cliente** que estava sendo processada
-2. **Print da janela do app** com o log completo
-3. **Data e hora** que aconteceu
-
-Não tente "corrigir manualmente" o XLSX — manter o gerado pelo app permite auditoria depois.
+1. Baixe o ZIP: [`main.zip`](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip) — extraia e entre na pasta `revcalc-main/`.
+2. Execute os mesmos comandos **`venv`** + **`pip install -e ".[dev]"`** de cima dentro dessa pasta.
 
 ---
 
-## Versão atual: v0.6.0
+## Releases, `.exe` e kit Windows
 
-Mudanças desde v0.5.0:
-- Template em duas camadas (DADOS oculta + CÁLCULO única)
-- Aba única CÁLCULO (Crefaz só opera contratos até 24 parcelas)
-- 8 capturas automáticas: PDF unificado + 1 PNG geral + 6 PNGs regionais (cada bloco do XLSX) + 2 PNGs dos PDFs (Item II do contrato + Séries BACEN)
-- Log em modo append (cada execução adiciona um novo bloco no `12 Log.txt`)
-- Aviso destacado quando BACEN é copiado do repositório central
+A página [**Releases**](https://github.com/adventurelabsbrasil/revcalc/releases) pode trazer instaladores quando publicados. **Binário Windows pode não estar anexado** em toda versão — o caminho garantido até automatizarmos CI é **clone + venv acima**.
 
-Roadmap próximo:
-- **v0.7** — distribuição automática (não precisa pedir pra Bruna empacotar a cada release)
-- **v0.8** — versão Mac empacotada (`.app` arrastável)
-- **v0.9** — notificação Telegram após cada cálculo
+Alternativa já documentada para equipe Rose (script `instalar-e-testar`) está em **`cliente-kit/`** — ver [**`cliente-kit/README_USUARIO_FINAL.md`**](cliente-kit/README_USUARIO_FINAL.md).
 
 ---
 
-*Desenvolvido e mantido pela equipe interna responsável pelo sistema.*
+## Como usar no dia a dia (após instalar)
+
+1. Abrir o app (`python -m calculadora_crefaz` ou `.exe`).
+2. **Entrar com Google** (primeira vez abre o navegador para autorização).
+3. Digitar o **nome completo** da cliente **como aparece na pasta** no Drive (mínimo duas palavras).
+4. **Calcular** — acompanhar o log na janela.
+5. Conferir no Drive: **`10 …xlsx`**, **`12 Log.txt`**, **`13 Print …`** (quando LibreOffice disponível).
+
+Estrutura típica de saída na pasta da cliente (`EMPRESTIMO DE ENERGIA/.../Nome/`):
+
+```
+├── 09 Contrato Crefaz.pdf
+├── 10 Cálculo NOME.xlsx
+├── 11 Series Temporais.pdf    (existente ou copiado pelo app)
+├── 12 Log.txt
+├── 13 Print CÁLCULO.pdf
+├── 13 Print CÁLCULO.png
+├── 13 Print 01 … 08 …        (capturas nomeadas pelo app)
+└── …
+```
+
+---
+
+## Mensagens comuns no log da UI
+
+- **Sucesso:** `Pasta encontrada`, `Contrato lido`, `Pronto`.
+- **Aviso:** BACEN copiado do repositório central; sobrescrever cálculo existente; capturas não geradas (LibreOffice ausente ou não detectado).
+
+### Erros que interrompem o fluxo
+
+| Sintoma rápido | O que conferir |
+|----------------|----------------|
+| Pasta não encontrada | Nome igual ao da pasta no Drive |
+| Contrato não encontrado | Renomear para padrão com “Contrato Crefaz” no nome |
+| BACEN não encontrado | Existência do PDF correspondente ao mês/ano esperado pela regra do app |
+| Prazo não suportado | Template atual cobre até **24 parcelas** (Crefaz) |
+
+Logout: botão **Sair** (limpa sessão local nesta máquina).
+
+---
+
+## Reportar problema
+
+Envie nome da cliente, captura da janela com o log completo e data/hora. Evite editar manualmente o XLSX gerado para manter auditoria.
+
+---
+
+## Roadmap mencionado no produto
+
+- **v0.7** — automatizar distribuição / build `.exe` em Releases (GitHub Actions)
+- **v0.8** — pacote `.app` Mac mais polido
+- **v0.9** — notificação pós-cálculo (ex.: Telegram), se política Rose permitir
+
+---
+
+© **2026** · **Adventure Labs** — Calculadora de Ação Crefaz · **v0.6.1**

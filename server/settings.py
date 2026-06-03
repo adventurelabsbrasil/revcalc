@@ -1,0 +1,71 @@
+"""Configuração do backend via ambiente.
+
+Lê variáveis de ambiente (e um .env na raiz do repo em dev). Não instancia nada
+no import — use `get_settings()` (cacheado) para que importar o pacote em teste
+não exija o ambiente completo.
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
+
+
+def _load_dotenv() -> None:
+    """Carrega um .env (raiz do repo ou cwd) em dev — não sobrescreve env já setado."""
+    candidatos = [Path.cwd() / ".env", Path(__file__).resolve().parents[1] / ".env"]
+    for env_path in candidatos:
+        if not env_path.exists():
+            continue
+        for linha in env_path.read_text().splitlines():
+            linha = linha.strip()
+            if not linha or linha.startswith("#") or "=" not in linha:
+                continue
+            chave, valor = linha.split("=", 1)
+            os.environ.setdefault(chave.strip(), valor.strip().strip('"').strip("'"))
+        break
+
+
+def _req(nome: str) -> str:
+    val = os.environ.get(nome)
+    if not val:
+        raise RuntimeError(
+            f"Env var obrigatória ausente: {nome}. "
+            "Defina no ambiente do container ou no .env (ver .env.example)."
+        )
+    return val
+
+
+@dataclass(frozen=True)
+class Settings:
+    client_id: str
+    client_secret: str
+    redirect_uri: str          # https://api.revcalc.<dominio>/api/auth/callback
+    frontend_origin: str       # https://revcalc.<dominio>  (origem do front, p/ CORS + redirect)
+    session_secret: str        # segredo p/ assinar cookie de sessão + stream token
+    token_store_path: Path     # diretório do token store cifrado (volume)
+    token_enc_key: str | None  # chave Fernet opcional; se ausente, derivada do session_secret
+    cookie_name: str
+    cookie_domain: str | None  # ".adventurelabs.com.br" p/ cookie first-party entre subdomínios
+    cookie_samesite: str       # "lax" (mesmo site/subdomínio) ou "none" (cross-site)
+    cookie_secure: bool
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    _load_dotenv()
+    return Settings(
+        client_id=_req("GOOGLE_OAUTH_CLIENT_ID"),
+        client_secret=_req("GOOGLE_OAUTH_CLIENT_SECRET"),
+        redirect_uri=_req("OAUTH_REDIRECT_URI"),
+        frontend_origin=_req("FRONTEND_ORIGIN").rstrip("/"),
+        session_secret=_req("SESSION_SECRET"),
+        token_store_path=Path(os.environ.get("TOKEN_STORE_PATH", "/data/tokens")),
+        token_enc_key=os.environ.get("TOKEN_ENC_KEY") or None,
+        cookie_name=os.environ.get("COOKIE_NAME", "revcalc_session"),
+        cookie_domain=(os.environ.get("COOKIE_DOMAIN") or "").strip() or None,
+        cookie_samesite=os.environ.get("COOKIE_SAMESITE", "lax").strip().lower(),
+        cookie_secure=os.environ.get("COOKIE_SECURE", "true").strip().lower() != "false",
+    )

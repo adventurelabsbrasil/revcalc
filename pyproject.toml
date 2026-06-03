@@ -1,6 +1,6 @@
 [project]
 name = "calculadora-crefaz"
-version = "0.6.2"
+version = "0.7.0"
 description = "Calculadora de Ação Crefaz — Rose Portal Advocacia (MVP)"
 requires-python = ">=3.11"
 authors = [
@@ -26,6 +26,13 @@ dev = [
     "pytest>=8.0.0",
     "pytest-mock>=3.12.0",
     "pyinstaller>=6.5.0",
+]
+# Backend web (server/). google-auth-oauthlib já está em [project].dependencies.
+web = [
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.30.0",
+    "cryptography>=42.0.0",
+    "itsdangerous>=2.1.0",
 ]
 
 [project.scripts]

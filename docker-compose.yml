@@ -1,0 +1,34 @@
+# Deploy do backend no xeon. TLS/roteamento ficam no Traefik existente.
+#
+#   docker compose up -d --build
+#
+# O front (Next.js) vive na Vercel — NÃO está neste compose.
+services:
+  revcalc-api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    image: revcalc-api:latest
+    container_name: revcalc-api
+    restart: unless-stopped
+    env_file: .env
+    # Bind em localhost; o Traefik (rede externa) faz o TLS na frente.
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - revcalc-tokens:/data/tokens
+    # ── Integração com o Traefik do xeon (descomente e ajuste a rede/host) ──
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.revcalc.rule=Host(`api.revcalc.adventurelabs.com.br`)"
+    #   - "traefik.http.routers.revcalc.entrypoints=websecure"
+    #   - "traefik.http.routers.revcalc.tls.certresolver=letsencrypt"
+    #   - "traefik.http.services.revcalc.loadbalancer.server.port=8000"
+    # networks: [traefik]
+
+# networks:
+#   traefik:
+#     external: true
+
+volumes:
+  revcalc-tokens:

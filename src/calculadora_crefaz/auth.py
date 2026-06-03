@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -17,10 +16,22 @@ import keyring
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
 
-from .config import DOMINIOS_PERMITIDOS, KEYRING_SERVICE, OAUTH_SCOPES
+# SessaoAutenticada / _email_do_token / _validar_dominio vivem em auth_core (sem
+# keyring) e são re-exportados aqui para compatibilidade com imports existentes.
+from .auth_core import SessaoAutenticada, _email_do_token, _validar_dominio
+from .config import KEYRING_SERVICE, OAUTH_SCOPES
 from .exceptions import AuthError
+
+__all__ = [
+    "SessaoAutenticada",
+    "_email_do_token",
+    "_validar_dominio",
+    "carregar_sessao_existente",
+    "fluxo_login",
+    "logout",
+    "ultimo_email_logado",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -77,33 +88,6 @@ def _client_config(client_id: str, client_secret: str) -> dict:
 
 def _username_para_email(email: str) -> str:
     return f"oauth-tokens-{email}"
-
-
-def _validar_dominio(email: str) -> None:
-    dominio = email.split("@", 1)[-1].lower()
-    if dominio not in DOMINIOS_PERMITIDOS:
-        raise AuthError(
-            f"Domínio '{dominio}' não autorizado. "
-            f"Permitidos: {', '.join(DOMINIOS_PERMITIDOS)}."
-        )
-
-
-@dataclass
-class SessaoAutenticada:
-    """Wrap das credenciais + email do usuário logado."""
-
-    credentials: Credentials
-    email: str
-
-    def drive_service(self):
-        return build("drive", "v3", credentials=self.credentials, cache_discovery=False)
-
-
-def _email_do_token(creds: Credentials) -> str:
-    """Pega o email associado às credenciais via userinfo do Drive (about endpoint)."""
-    service = build("drive", "v3", credentials=creds, cache_discovery=False)
-    about = service.about().get(fields="user(emailAddress)").execute()
-    return about["user"]["emailAddress"]
 
 
 def _salvar_token(email: str, creds: Credentials) -> None:

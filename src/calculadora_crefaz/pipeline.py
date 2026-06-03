@@ -15,7 +15,7 @@ from typing import Callable, Optional
 from unidecode import unidecode
 
 from . import calculadora, drive, parser_bacen, parser_contrato
-from .auth import SessaoAutenticada
+from .auth_core import SessaoAutenticada  # auth_core não importa keyring (compat. web)
 from .capturas import (
     CapturasError,
     capturar_pagina_pdf,

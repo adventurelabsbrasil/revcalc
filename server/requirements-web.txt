@@ -1,0 +1,22 @@
+# Dependências de runtime do backend web (container).
+# = deps do engine (sem keyring, que é só desktop) + deps web.
+# Mantenha em sincronia com pyproject.toml ([project].dependencies + [web]).
+
+# Engine (calculadora_crefaz)
+pdfplumber>=0.11.0
+openpyxl>=3.1.2
+google-api-python-client>=2.120.0
+google-auth-oauthlib>=1.2.0
+google-auth-httplib2>=0.2.0
+python-dateutil>=2.9.0
+Unidecode>=1.3.8
+rapidfuzz>=3.6.0
+httpx>=0.27.0
+pypdfium2>=4.30.0
+Pillow>=10.0.0
+
+# Web
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+cryptography>=42.0.0
+itsdangerous>=2.1.0

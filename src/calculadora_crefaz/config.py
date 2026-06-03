@@ -1,16 +1,19 @@
 """Constantes do pipeline — IDs do Drive, paths, regex, mapeamento de campos."""
 
+import os
 import re
 import sys
 from pathlib import Path
 
 # ─── Drive ──────────────────────────────────────────────────────────────────
+# IDs externalizáveis via env (REVCALC_PASTA_MAE_ID / REVCALC_PASTA_BACEN_ID)
+# pra separar staging/prod sem editar código. Fallback = valores de prod (Rose).
 
 # Pasta-mãe "EMPRESTIMO DE ENERGIA" no Drive da Rose
-PASTA_MAE_ID = "1OciPZU1-C54kRk7C8QWyIGUb8od7mWcN"
+PASTA_MAE_ID = os.environ.get("REVCALC_PASTA_MAE_ID", "1OciPZU1-C54kRk7C8QWyIGUb8od7mWcN")
 
 # Pasta "Série do Bacen" dentro de "EMPRESTIMO DE ENERGIA/03. MODELOS/"
-PASTA_BACEN_ID = "1w8aWxOURJewINVPlyGKlitEE-EpStWUe"
+PASTA_BACEN_ID = os.environ.get("REVCALC_PASTA_BACEN_ID", "1w8aWxOURJewINVPlyGKlitEE-EpStWUe")
 
 # Subpastas de estado seguem o padrão "NN. NOME DO ESTADO"
 REGEX_PASTA_ESTADO = re.compile(r"^\d{2}\.\s+")
@@ -18,7 +21,15 @@ REGEX_PASTA_ESTADO = re.compile(r"^\d{2}\.\s+")
 # ─── OAuth ──────────────────────────────────────────────────────────────────
 
 OAUTH_SCOPES = ["https://www.googleapis.com/auth/drive"]
-DOMINIOS_PERMITIDOS = ("roseportaladvocacia.com.br", "adventurelabs.com.br")
+
+# Domínios autorizados a logar. Externalizável via env REVCALC_DOMINIOS_PERMITIDOS
+# (CSV) pra adicionar domínio sem editar código; fallback = Rose + Adventure.
+_DOMINIOS_ENV = os.environ.get("REVCALC_DOMINIOS_PERMITIDOS", "").strip()
+DOMINIOS_PERMITIDOS = (
+    tuple(d.strip().lower() for d in _DOMINIOS_ENV.split(",") if d.strip())
+    if _DOMINIOS_ENV
+    else ("roseportaladvocacia.com.br", "adventurelabs.com.br")
+)
 KEYRING_SERVICE = "calculadora-crefaz"
 
 # ─── Identificação de arquivos na pasta da cliente ──────────────────────────

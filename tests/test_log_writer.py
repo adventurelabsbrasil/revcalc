@@ -6,6 +6,7 @@ from datetime import date, datetime
 
 import pytest
 
+from calculadora_crefaz import __version__
 from calculadora_crefaz.log_writer import (
     ArquivoGerado,
     DadosLog,
@@ -73,7 +74,7 @@ def _dados_log_marli() -> DadosLog:
         bacen_origem="pasta_cliente",
         bacen_mes=2,
         bacen_ano=2026,
-        aba_template="PRICE 24X",
+        aba_template="CÁLCULO",
         arquivos_gerados=[
             ArquivoGerado("10 Cálculo MARLI SUELI BERGER DAMBROSIO.xlsx", "novo"),
             ArquivoGerado("11 Series Temporais.pdf", "mantido"),
@@ -85,7 +86,7 @@ def _dados_log_marli() -> DadosLog:
 
 def test_log_marli_contem_campos_chave():
     txt = gerar_log(_dados_log_marli())
-    assert "v0.5.1" in txt
+    assert f"v{__version__}" in txt  # versão corrente, não hardcoded
     assert "2026-04-28 14:32:11 BRT" in txt
     assert "bruna@roseportaladvocacia.com.br" in txt
     assert "Marli Sueli Berger Dambrosio" in txt
@@ -98,7 +99,7 @@ def test_log_marli_contem_campos_chave():
     assert "14,49%" in txt
     assert "6,47%" in txt
     assert "Parcelas pagas até hoje: 3" in txt
-    assert "PRICE 24X" in txt
+    assert "CÁLCULO" in txt
     assert "pasta_cliente" in txt
     assert "STATUS: SUCESSO" in txt
     # Lista de arquivos gerados

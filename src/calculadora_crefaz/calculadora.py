@@ -42,7 +42,11 @@ def parcelas_pagas(
 
 
 def decidir_aba(prazo: int) -> str:
-    """Escolhe aba do template baseado no prazo. Lança se > 60."""
+    """Escolhe a aba do template a partir do prazo.
+
+    v0.6.0: Crefaz só opera contratos de 1 a 24 parcelas → uma única aba CÁLCULO.
+    Lança PrazoForaDoTemplate se o prazo cair fora de [PRAZO_MINIMO, PRAZO_MAXIMO].
+    """
     if prazo < PRAZO_MINIMO or prazo > PRAZO_MAXIMO:
         raise PrazoForaDoTemplate(prazo)
     return aba_para_prazo(prazo)

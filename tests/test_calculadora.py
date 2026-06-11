@@ -110,32 +110,22 @@ class TestParcelasPagas:
 
 
 class TestDecidirAba:
-    def test_prazo_18_aba_24x(self):
-        assert decidir_aba(18) == "PRICE 24X"
+    # v0.6.0: Crefaz só opera contratos de até 24 parcelas → uma única aba "CÁLCULO".
+    # As abas multi-prazo (PRICE 36x/48x/60x) foram removidas; prazo > 24 agora lança.
+    def test_prazo_1_aba_calculo(self):
+        assert decidir_aba(1) == "CÁLCULO"
 
-    def test_prazo_24_aba_24x(self):
-        assert decidir_aba(24) == "PRICE 24X"
+    def test_prazo_18_aba_calculo(self):
+        assert decidir_aba(18) == "CÁLCULO"
 
-    def test_prazo_25_aba_36x(self):
-        assert decidir_aba(25) == "PRICE 36x"
+    def test_prazo_24_aba_calculo(self):
+        assert decidir_aba(24) == "CÁLCULO"
 
-    def test_prazo_36_aba_36x(self):
-        assert decidir_aba(36) == "PRICE 36x"
-
-    def test_prazo_37_aba_48x(self):
-        assert decidir_aba(37) == "PRICE 48x"
-
-    def test_prazo_48_aba_48x(self):
-        assert decidir_aba(48) == "PRICE 48x"
-
-    def test_prazo_49_aba_60x(self):
-        assert decidir_aba(49) == "PRICE 60x"
-
-    def test_prazo_60_aba_60x(self):
-        assert decidir_aba(60) == "PRICE 60x"
-
-    def test_prazo_1_aba_24x(self):
-        assert decidir_aba(1) == "PRICE 24X"
+    def test_prazo_25_lanca(self):
+        # boundary: 1 acima do PRAZO_MAXIMO (24)
+        with pytest.raises(PrazoForaDoTemplate) as exc:
+            decidir_aba(25)
+        assert exc.value.prazo == 25
 
     def test_prazo_61_lanca(self):
         with pytest.raises(PrazoForaDoTemplate) as exc:

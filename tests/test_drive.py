@@ -16,7 +16,6 @@ from calculadora_crefaz.drive import (
     localizar_pasta_cliente,
 )
 from calculadora_crefaz.exceptions import (
-    ContratoAmbiguo,
     ContratoNaoEncontrado,
     PastaAmbigua,
     PastaNaoEncontrada,
@@ -264,7 +263,9 @@ def test_localizar_contrato_unico():
     assert contrato.id == "doc-2"
 
 
-def test_localizar_contrato_ambiguo():
+def test_localizar_contrato_multiplos_resolve_por_prioridade():
+    # v0.6.x: múltiplos "Contrato Crefaz" não disparam mais erro — o engine escolhe
+    # o canônico por prioridade ("NN Contrato Crefaz.pdf" > não-numerado/antigo).
     service = _mock_service_drive(
         {
             "pasta-x": [
@@ -281,9 +282,8 @@ def test_localizar_contrato_ambiguo():
             ]
         }
     )
-    with pytest.raises(ContratoAmbiguo) as exc:
-        localizar_contrato(service, "pasta-x")
-    assert len(exc.value.candidatos) == 2
+    contrato = localizar_contrato(service, "pasta-x")
+    assert contrato.id == "doc-a"  # numerado canônico vence o "antigo"
 
 
 def test_localizar_contrato_ambiguo_resolvido_com_forcar_nome():

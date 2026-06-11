@@ -8,7 +8,7 @@ from io import BytesIO
 import pytest
 from openpyxl import load_workbook
 
-from calculadora_crefaz.config import TEMPLATE_PATH
+from calculadora_crefaz.exceptions import PrazoForaDoTemplate
 from calculadora_crefaz.parser_contrato import DadosContrato
 from calculadora_crefaz.planilha import DadosPlanilha, gerar_xlsx
 
@@ -56,70 +56,74 @@ def _carrega_xlsx(blob: bytes):
 
 
 class TestGerarXlsx:
-    def test_marli_18_parcelas_aba_24x(self):
+    # v0.6.0: o template Calculo.xlsx tem aba DADOS (valores) + aba CÁLCULO única
+    # (fórmulas =DADOS!...). Os inputs vão na DADOS; a CÁLCULO referencia. Crefaz só
+    # opera até 24 parcelas → abas multi-prazo (PRICE 36x/48x/60x) foram removidas.
+    def test_marli_18_parcelas_dados_e_calculo(self):
         dados = DadosPlanilha(
             contrato=_contrato_marli(),
             taxa_bacen=0.0647,
             parcelas_pagas=3,
             data_calculo=date(2026, 4, 28),
         )
-        blob = gerar_xlsx(dados)
-        wb = _carrega_xlsx(blob)
+        wb = _carrega_xlsx(gerar_xlsx(dados))
 
-        # Apenas 1 aba sobrevive
-        assert wb.sheetnames == ["PRICE 24X"]
-        ws = wb.active
+        assert wb.sheetnames == ["DADOS", "CÁLCULO"]
+        assert wb.active.title == "CÁLCULO"
 
-        assert ws["C1"].value == (
+        # Inputs vão na aba DADOS (ver CELULAS_DADOS).
+        dd = wb["DADOS"]
+        assert dd["B2"].value == (
             "CÁLCULOS DA OPERAÇÃO Nº 4095068 - "
             "CLIENTE: MARLI SUELI BERGER DAMBROSIO x BANCO CREFAZ"
         )
-        # data_pactuacao em D3 — datetime
-        assert ws["D3"].value.date() == date(2025, 12, 29)
-        assert ws["I7"].value == 3500.00
-        assert ws["I9"].value == 0.00  # tarifas
-        assert ws["I13"].value == 104.99  # IOF
-        assert ws["I15"].value == 18
-        assert ws["I16"].value == 585.53
-        assert ws["I17"].value == pytest.approx(0.1449)
-        assert ws["AP15"].value == pytest.approx(0.0647)
-        assert ws["BL8"].value == 3
+        assert dd["B3"].value.date() == date(2025, 12, 29)  # data_emissao
+        assert dd["B4"].value.date() == date(2026, 2, 2)    # 1º vencimento
+        assert dd["B4"].number_format == "dd/mm/yyyy"
+        assert dd["B6"].value == 3500.00                    # valor principal
+        assert dd["B7"].value == 0.00                       # tac/tarifas
+        assert dd["B8"].value == 104.99                     # IOF
+        assert dd["B9"].value == 18                         # qtd parcelas
+        assert dd["B10"].value == 585.53                    # prestação
+        assert dd["B11"].value == pytest.approx(0.1449)     # taxa pactuada
+        assert dd["B12"].value == pytest.approx(0.0647)     # taxa BACEN
+        assert dd["B13"].value == 3                         # parcelas pagas
 
-        assert ws["D5"].value.date() == date(2026, 2, 2)
-        assert ws["D5"].number_format == "dd/mm/yyyy"
-        assert isinstance(ws["D132"].value, str) and ws["D132"].value.startswith("=IF(")
+        # A aba CÁLCULO referencia a DADOS por fórmula (não tem valores literais).
+        cc = wb["CÁLCULO"]
+        assert cc["C1"].value == "=DADOS!$B$2"
+        assert cc["I7"].value == "=DADOS!$B$6"
+        assert cc["I15"].value == "=DADOS!$B$9"
+        assert cc["BL8"].value == "=DADOS!$B$13"
+        assert cc.page_setup.orientation == "landscape"
+        assert cc.page_setup.fitToWidth in (1, True)
 
-        # Page setup (v0.5.1 print-ready)
-        assert ws.page_setup.orientation == "landscape"
-        assert ws.page_setup.fitToWidth in (1, True)
-
-    def test_adriano_12_parcelas_aba_24x(self):
+    def test_adriano_12_parcelas_dados(self):
         dados = DadosPlanilha(
             contrato=_contrato_adriano(),
-            taxa_bacen=0.0573,  # exemplo
+            taxa_bacen=0.0573,
             parcelas_pagas=6,
             data_calculo=date(2026, 4, 28),
         )
-        blob = gerar_xlsx(dados)
-        wb = _carrega_xlsx(blob)
+        wb = _carrega_xlsx(gerar_xlsx(dados))
 
-        assert wb.sheetnames == ["PRICE 24X"]
-        ws = wb.active
-        assert ws["C1"].value == (
+        assert wb.sheetnames == ["DADOS", "CÁLCULO"]
+        dd = wb["DADOS"]
+        assert dd["B2"].value == (
             "CÁLCULOS DA OPERAÇÃO Nº 3867296 - "
             "CLIENTE: ADRIANO LUIS CALISTRO LOURENCO x BANCO CREFAZ"
         )
-        assert ws["I7"].value == 1000.00
-        assert ws["I13"].value == 25.10
-        assert ws["I15"].value == 12
-        assert ws["I16"].value == 226.79
-        assert ws["I17"].value == pytest.approx(0.1877)
-        assert ws["BL8"].value == 6
+        assert dd["B4"].value.date() == date(2025, 10, 27)
+        assert dd["B4"].number_format == "dd/mm/yyyy"
+        assert dd["B6"].value == 1000.00
+        assert dd["B8"].value == 25.10
+        assert dd["B9"].value == 12
+        assert dd["B10"].value == 226.79
+        assert dd["B11"].value == pytest.approx(0.1877)
+        assert dd["B13"].value == 6
 
-        assert ws["D5"].value.date() == date(2025, 10, 27)
-        assert ws["D5"].number_format == "dd/mm/yyyy"
-
-    def test_prazo_30_aba_36x_offset_aplicado(self):
+    def test_prazo_acima_de_24_lanca(self):
+        # Crefaz não opera > 24 parcelas; gerar_xlsx propaga PrazoForaDoTemplate.
         contrato = _contrato_marli()
         contrato.prazo = 30
         dados = DadosPlanilha(
@@ -128,74 +132,21 @@ class TestGerarXlsx:
             parcelas_pagas=5,
             data_calculo=date(2026, 4, 28),
         )
-        blob = gerar_xlsx(dados)
-        wb = _carrega_xlsx(blob)
-
-        assert wb.sheetnames == ["PRICE 36x"]
-        ws = wb.active
-        # Offset +1: titulo em C2, valor em I8, qtd parcelas em I16, taxa BACEN em AP16
-        assert "MARLI" in ws["C2"].value
-        assert ws["I8"].value == 3500.00
-        assert ws["I16"].value == 30
-        assert ws["I17"].value == 585.53  # valor da prestação
-        assert ws["I18"].value == pytest.approx(0.1449)  # taxa pactuada
-        assert ws["AP16"].value == pytest.approx(0.0647)  # BACEN com offset
-        assert ws["BL9"].value == 5  # parcelas pagas com offset
-
-        assert ws["D6"].value.date() == date(2026, 2, 2)
-        assert ws["D6"].number_format == "dd/mm/yyyy"
-        assert isinstance(ws["D133"].value, str) and ws["D133"].value.startswith("=IF(")
-        assert ws.page_setup.fitToWidth in (1, True)
-
-    def test_prazo_48_forca_landscape(self):
-        contrato = _contrato_marli()
-        contrato.prazo = 48
-        dados = DadosPlanilha(
-            contrato=contrato,
-            taxa_bacen=0.0647,
-            parcelas_pagas=10,
-            data_calculo=date(2026, 4, 28),
-        )
-        blob = gerar_xlsx(dados)
-        wb = _carrega_xlsx(blob)
-
-        assert wb.sheetnames == ["PRICE 48x"]
-        ws = wb.active
-        assert ws.page_setup.orientation == "landscape"
-        assert ws.page_setup.fitToWidth in (1, True)
-
-    def test_prazo_60_aba_60x(self):
-        contrato = _contrato_marli()
-        contrato.prazo = 60
-        dados = DadosPlanilha(
-            contrato=contrato,
-            taxa_bacen=0.0647,
-            parcelas_pagas=15,
-            data_calculo=date(2026, 4, 28),
-        )
-        blob = gerar_xlsx(dados)
-        wb = _carrega_xlsx(blob)
-
-        assert wb.sheetnames == ["PRICE 60x"]
-        ws = wb.active
-        assert ws["I16"].value == 60
-        assert ws["BL9"].value == 15
-        assert ws["D6"].number_format == "dd/mm/yyyy"
-        assert ws.page_setup.fitToWidth in (1, True)
+        with pytest.raises(PrazoForaDoTemplate):
+            gerar_xlsx(dados)
 
     def test_formulas_preservadas(self):
-        """Garante que fórmulas críticas do template não são sobrescritas."""
+        """Garante que fórmulas críticas do template (aba CÁLCULO) não são sobrescritas."""
         dados = DadosPlanilha(
             contrato=_contrato_marli(),
             taxa_bacen=0.0647,
             parcelas_pagas=3,
             data_calculo=date(2026, 4, 28),
         )
-        blob = gerar_xlsx(dados)
-        wb = _carrega_xlsx(blob)
-        ws = wb.active
+        wb = _carrega_xlsx(gerar_xlsx(dados))
+        ws = wb["CÁLCULO"]
 
-        # PRICE 24X — fórmulas-chave que NÃO devem ter sido tocadas
+        # Fórmulas-chave que NÃO devem ter sido tocadas pelo preenchimento.
         assert ws["I14"].value == "=SUM(I7:Y13)"  # total
         assert ws["I18"].value == "=I15*I16"  # valor final
         assert ws["AP14"].value == "=SUM(AP7:AZ13)"

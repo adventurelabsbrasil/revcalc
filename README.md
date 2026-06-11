@@ -1,8 +1,26 @@
 # Calculadora de Ação Crefaz
 
-**Versão atual:** `v0.6.2` · **Cliente:** Rose Portal Advocacia  
+**Versão atual:** `v0.7.0` · **Cliente:** Rose Portal Advocacia  
 
-Ferramenta desktop que automatiza o cálculo de revisão de contratos **Crefaz**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica.
+Automatiza o cálculo de revisão de contratos **Crefaz**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica.
+
+## ⚡ Versão Web (produção)
+
+Desde 06/2026 roda **como web app** (a versão desktop `.exe` foi bloqueada pelo Smart App Control do Windows). Sem instalar nada:
+
+| Camada | URL / onde | Stack |
+|---|---|---|
+| **Front** | https://revcalc.adventurelabs.com.br | Next.js na **Vercel** (root `web/`) |
+| **Backend** | https://revcalc-api.adventurelabs.com.br | **FastAPI** em container no **xeon**, exposto via **Cloudflare Tunnel** (xeon é NAT, sem inbound) |
+| **OAuth** | Google client **Web** (Workspace Rose, consent Internal) | secrets em Infisical `/clientes/03_ROSE` |
+
+O **engine de cálculo** (`src/calculadora_crefaz/`) é o mesmo do desktop, rodando inalterado dentro do container — `server/` só embrulha em HTTP (OAuth server-side + SSE de progresso). O `templates/Calculo.xlsx` é o **entregável jurídico CONGELADO**; o Python só preenche inputs, o Excel calcula.
+
+**Deploy:** backend `docker compose up -d --build` no xeon (`.env` renderizado do Infisical) + túnel `cloudflared` (systemd `--user`); front `vercel --prod` (rootDir `web`, env `NEXT_PUBLIC_API_BASE`). Detalhes em [`server/README.md`](server/README.md) e [`web/README.md`](web/README.md).
+
+**Saída na pasta da cliente (v0.7.0):** `10 Cálculo NOME.xlsx` · `13 Print CÁLCULO.pdf` · `imag.01.png` (Item II do contrato, recorte só da seção) · `imag.02.png` (bloco "Parcela com Taxa Média e Expurgo").
+
+> As seções abaixo descrevem o **fluxo desktop legado** (`.exe`/PyInstaller) — mantidas como referência; o caminho atual é a web acima.
 
 **Docs adicionais (detalhes e edge cases):**
 

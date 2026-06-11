@@ -68,7 +68,7 @@ class ContratoParseError(CalculadoraError):
 class BacenNaoEncontrado(CalculadoraError):
     """PDF do BACEN ausente em ambos os locais (pasta cliente + Série do Bacen).
 
-    Mencionar equipe da Rose para upload manual.
+    Sugerir contactar o administrador do repositório BACEN/Drive.
     """
 
 

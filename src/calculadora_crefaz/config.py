@@ -6,10 +6,8 @@ import sys
 from pathlib import Path
 
 # ─── Drive ──────────────────────────────────────────────────────────────────
-# IDs externalizáveis via env (REVCALC_PASTA_MAE_ID / REVCALC_PASTA_BACEN_ID)
-# pra separar staging/prod sem editar código. Fallback = valores de prod (Rose).
 
-# Pasta-mãe "EMPRESTIMO DE ENERGIA" no Drive da Rose
+# Pasta-mãe "EMPRESTIMO DE ENERGIA" no Drive (layout do tenant)
 PASTA_MAE_ID = os.environ.get("REVCALC_PASTA_MAE_ID", "1OciPZU1-C54kRk7C8QWyIGUb8od7mWcN")
 
 # Pasta "Série do Bacen" dentro de "EMPRESTIMO DE ENERGIA/03. MODELOS/"
@@ -20,10 +18,13 @@ REGEX_PASTA_ESTADO = re.compile(r"^\d{2}\.\s+")
 
 # ─── OAuth ──────────────────────────────────────────────────────────────────
 
-OAUTH_SCOPES = ["https://www.googleapis.com/auth/drive"]
-
-# Domínios autorizados a logar. Externalizável via env REVCALC_DOMINIOS_PERMITIDOS
-# (CSV) pra adicionar domínio sem editar código; fallback = Rose + Adventure.
+# Web: só `drive`. O `spreadsheets` (master run log v0.6.9) fica fora até
+# habilitar Sheets API + setar REVCALC_MASTER_RUN_LOG_SPREADSHEET_ID — assim o
+# consent já minted (drive-only) continua válido e não pede permissão a mais.
+OAUTH_SCOPES = [
+    "https://www.googleapis.com/auth/drive",
+]
+# Domínios autorizados a logar — externalizável via env REVCALC_DOMINIOS_PERMITIDOS.
 _DOMINIOS_ENV = os.environ.get("REVCALC_DOMINIOS_PERMITIDOS", "").strip()
 DOMINIOS_PERMITIDOS = (
     tuple(d.strip().lower() for d in _DOMINIOS_ENV.split(",") if d.strip())
@@ -79,8 +80,16 @@ REGEX_CALCULO_EXISTENTE = re.compile(r"^10\s+c[áa]lculo.*\.xlsx$", re.IGNORECAS
 # ─── Parser do Contrato Crefaz ──────────────────────────────────────────────
 
 # Marcadores do bloco Item II
-MARCADOR_ITEM_II_INICIO = "II.EMPRÉSTIMO CONCEDIDO"
-MARCADOR_ITEM_II_FIM = "III.CUSTO EFETIVO TOTAL"
+# Marcadores do Item II — Crefaz emite em duas variantes:
+#   - "II.EMPRÉSTIMO CONCEDIDO"  (sem espaço entre 'II.' e 'EMPRÉSTIMO') — PDFs antigos
+#   - "II. EMPRÉSTIMO CONCEDIDO" (com espaço)                            — PDFs novos (2025+)
+# Mesma coisa para o III. — usamos regex tolerante a partir de v0.6.9.
+MARCADOR_ITEM_II_INICIO = re.compile(
+    r"II\.\s*EMPR[ÉE]STIMO\s+CONCEDIDO", re.IGNORECASE
+)
+MARCADOR_ITEM_II_FIM = re.compile(
+    r"III\.\s*CUSTO\s+EFETIVO\s+TOTAL", re.IGNORECASE
+)
 
 # Regex para campos do Item II (tolerância a espaços e quebras de linha)
 REGEX_ITEM_II = {
@@ -99,7 +108,16 @@ REGEX_ITEM_II = {
 }
 
 # Cabeçalho fora do Item II
-REGEX_CEDULA = re.compile(r"C[ÉE]DULA\s+DE\s+CR[ÉE]DITO\s+BANC[ÁA]RIO\s+N\.?[ºo°]?\s*(\d+)")
+# Crefaz emite o número da cédula em duas variantes:
+#   - "Nº. 3314993" (ordinal + ponto)  — ex.: ERENI, ELIANE, ADRIANA
+#   - "N.º 4195331" (ponto + ordinal)  — ex.: FABÍOLA, MARILEI, ROSA
+# A classe `[\.\sº°o]{0,4}` aceita qualquer combinação até 4 chars,
+# incluindo `o` minúsculo (resultado de NFKC sobre `º`).
+# IGNORECASE cobre eventual minúscula no cabeçalho.
+REGEX_CEDULA = re.compile(
+    r"C[ÉE]DULA\s+DE\s+CR[ÉE]DITO\s+BANC[ÁA]RIO\s+N[\.\sº°o]{0,4}(\d+)",
+    re.IGNORECASE,
+)
 REGEX_NOME_EMITENTE = re.compile(r"Nome:\s*(.+?)\s+CPF", re.DOTALL)
 
 # ─── Parser BACEN ───────────────────────────────────────────────────────────
@@ -189,43 +207,70 @@ CELULAS_DADOS = {
 }
 
 
-# ─── Capturas regionais — escopo v0.6.0 ────────────────────────────────────
+# ─── Capturas (v0.6.9) ───────────────────────────────────────────────────────
+# Geradas na pasta da cliente:
+#   - 13 Print CÁLCULO.pdf — impressão A4 paisagem da planilha completa.
+#   - imag.01.png          — trecho "II. Empréstimo concedido" do PDF do contrato.
+#
+# img02 (recorte da região PMT na planilha) foi REMOVIDO em v0.6.9 — o recorte
+# estava inconsistente entre clientes. Constantes mantidas como código morto
+# para reativação futura quando o algoritmo for refeito (ROADMAP v0.7 → v0.8).
+REGIAO_IMG02_XLSX = "AD25:AZ73"
+REGIOES_CAPTURA_XLSX = {"img02": REGIAO_IMG02_XLSX}
 
-# Ranges XLSX dos 6 blocos individuais da aba CÁLCULO.
-# Cada região vira 1 PNG separado na pasta da cliente, prefixado por "13 Print NN".
-# Mapeamento auditado em 2026-04-29 contra `templates/Calculo.xlsx` v0.6.0.
-REGIOES_CALCULO = {
-    "01 Dados do Contrato":      "C6:Y18",   # bloco esquerdo top — header azul + 12 valores
-    "02 Valores Recalculados":   "AD6:AZ19", # bloco centro top — taxa BACEN + diferenças
-    "03 Saldo Recalculado":      "BE6:CB19", # bloco direito top — saldo + sub-quadro controvertido
-    "04 Conforme Pactuado":      "C25:Y121",  # bloco esquerdo bottom — fórmula PMT taxa contrato
-    "05 Parcela Taxa Media":     "AD25:AZ121",# bloco centro bottom — fórmula PMT taxa BACEN
-    "06 Percentual + Indevidas": "BE29:CB31",# 2 caixinhas lado a lado: % superior à média + total indevidas (incl. borda inferior)
-}
-
-# Capturas extraídas dos PDFs já presentes na pasta da cliente.
-# Cada entrada: (nome_png, regex_marker, quantas_paginas_apos_o_marker)
-CAPTURAS_PDF = {
-    "07 Item II do Contrato": {
-        "tipo": "contrato",  # PDF baixado do Drive como `contrato_arquivo`
-        "marcador_regex": r"II\.?\s*EMPR[ÉE]STIMO\s+CONCEDIDO",
-        "marcador_fim_regex": r"III\.?\s*CUSTO\s+EFETIVO\s+TOTAL",
-        "altura_fallback_ratio": 0.50,
-    },
-    "08 Series BACEN": {
-        "tipo": "bacen",  # PDF BACEN (já em memória durante o pipeline)
-        "marcador_regex": r"S[ée]ries?\s+selecionadas?",
-        "marcador_fim_regex": r"Fonte|Elabora[çc][ãa]o|Banco\s+Central",
-        "altura_fallback_ratio": 0.60,
-    },
+CAPTURA_IMG01_CONTRATO = {
+    "marcador_regex": r"II\.?\s*EMPR[ÉE]STIMO\s+CONCEDIDO",
+    "marcador_fim_regex": r"III\.?\s*CUSTO\s+EFETIVO\s+TOTAL",
+    "altura_fallback_ratio": 0.50,
 }
 
 # ─── Saída ──────────────────────────────────────────────────────────────────
 
 NOME_XLSX_SAIDA = "10 Cálculo {nome}.xlsx"
 NOME_BACEN_PASTA_CLIENTE = "11 Series Temporais.pdf"
-NOME_LOG = "12 Log.txt"
+NOME_IMAG_01 = "imag.01.png"
+NOME_IMAG_02 = "imag.02.png"  # v0.7.0: recorte "Parcela c/ Taxa Média e Expurgo" da planilha
 NOME_CONTRATO_PADRAO = "09 Contrato Crefaz.pdf"
+# NOME_LOG removido em v0.6.9: log txt deixou de ser salvo na pasta da cliente.
+# Audit trail vive na planilha central de runs (REVCALC_MASTER_RUN_LOG_SPREADSHEET_ID).
+
+
+def _env_from_dotenv(name: str) -> str:
+    """Lê env ou `.env` na raiz do projeto calculadora (mesmo critério que `auth`)."""
+    val = os.environ.get(name)
+    if val is not None:
+        return val.strip()
+    raiz = Path(__file__).resolve().parents[2]
+    env_path = raiz / ".env"
+    if env_path.exists():
+        for linha in env_path.read_text().splitlines():
+            linha = linha.strip()
+            if linha.startswith(f"{name}="):
+                return linha.split("=", 1)[1].strip().strip('"').strip("'")
+    return ""
+
+
+def master_run_log_spreadsheet_id() -> str | None:
+    """ID da planilha Google **central** (uma só para toda a equipa). Linhas via Sheets API."""
+    v = _env_from_dotenv("REVCALC_MASTER_RUN_LOG_SPREADSHEET_ID")
+    return v or None
+
+
+def master_run_log_sheet_tab() -> str:
+    """Nome da aba onde se faz append (default `Runs`)."""
+    v = _env_from_dotenv("REVCALC_MASTER_RUN_LOG_TAB")
+    return v or "Runs"
+
+
+def master_run_log_url() -> str | None:
+    """URL para abrir a planilha central; opcionalmente override em `REVCALC_MASTER_RUN_LOG_URL`."""
+    v = _env_from_dotenv("REVCALC_MASTER_RUN_LOG_URL")
+    if v:
+        return v
+    sid = master_run_log_spreadsheet_id()
+    if sid:
+        return f"https://docs.google.com/spreadsheets/d/{sid}/edit"
+    return None
 
 # ─── Validação ──────────────────────────────────────────────────────────────
 

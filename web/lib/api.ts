@@ -30,6 +30,17 @@ export type StartResponse =
   | { kind: "not_authenticated" }
   | { kind: "error"; message: string; sugestoes?: string[]; paths?: string[] };
 
+export async function fetchVersion(): Promise<string | null> {
+  try {
+    const r = await fetch(`${API_BASE}/healthz`);
+    if (!r.ok) return null;
+    const d = await r.json();
+    return (d?.version as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchMe(): Promise<Me | null> {
   try {
     const r = await fetch(`${API_BASE}/api/me`, { credentials: "include" });

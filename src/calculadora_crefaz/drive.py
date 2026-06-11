@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -26,13 +27,15 @@ from .config import (
 )
 from .exceptions import (
     BacenNaoEncontrado,
-    ContratoAmbiguo,
     ContratoNaoEncontrado,
     PastaAmbigua,
     PastaNaoEncontrada,
 )
 
 logger = logging.getLogger(__name__)
+
+# Nome deve conter explicitamente "Contrato Crefaz" (evita outro tipo de contrato na pasta).
+REGEX_CONTEM_CONTRATO_CREFAZ = re.compile(r"contrato\s+crefaz", re.IGNORECASE)
 
 MIME_FOLDER = "application/vnd.google-apps.folder"
 MIME_PDF = "application/pdf"
@@ -163,14 +166,39 @@ def localizar_pasta_cliente(service, nome_buscado: str) -> PastaCliente:
 # ─── Identificação de arquivos ──────────────────────────────────────────────
 
 
+def _prioridade_contrato_crefaz(nome: str) -> tuple:
+    """Ordem de preferência menor = melhor. Empate final pelo nome (estável).
+
+    1) ``NN Contrato Crefaz.pdf`` — só o padrão numerado, sem texto extra
+    2) ``NN Contrato Crefaz <resto>.pdf`` — numerado com sufixo (ex.: nome do cliente)
+    3) ``Contrato Crefaz.pdf`` — sem número
+    4) ``Contrato Crefaz <resto>.pdf`` — não numerado com sufixo (ex.: antigo)
+    """
+    nl = nome.strip().lower()
+    m = re.match(r"^(\d{2})\s+contrato\s+crefaz\.pdf$", nl)
+    if m:
+        return (0, int(m.group(1)), nome)
+    m = re.match(r"^(\d{2})\s+contrato\s+crefaz\s+(.+)\.pdf$", nl)
+    if m:
+        return (1, int(m.group(1)), nome)
+    if nl == "contrato crefaz.pdf":
+        return (2, 0, nome)
+    m = re.match(r"^contrato\s+crefaz\s+(.+)\.pdf$", nl)
+    if m:
+        return (3, 0, nome)
+    return (4, 0, nome)
+
+
 def _e_contrato(nome: str) -> bool:
-    """True se o nome bate algum padrão de contrato e não é prefixo auxiliar."""
+    """True se o nome bate algum padrão de contrato Crefaz e não é prefixo auxiliar."""
     nome_lower = nome.lower()
     if REGEX_COPIA.match(nome):
         return False
     for prefixo in PREFIXOS_NAO_CONTRATO:
         if nome_lower.startswith(prefixo):
             return False
+    if not REGEX_CONTEM_CONTRATO_CREFAZ.search(nome):
+        return False
     return any(rx.match(nome) for rx in REGEX_CONTRATO)
 
 
@@ -185,10 +213,14 @@ def _e_calculo_existente(nome: str) -> bool:
 
 
 def localizar_contrato(service, pasta_id: str, forcar_nome: Optional[str] = None) -> ArquivoDrive:
-    """Encontra o PDF do contrato Crefaz na pasta. Lança se 0 ou >1 candidatos.
+    """Encontra o PDF do contrato Crefaz na pasta.
 
-    `forcar_nome`: se passado, usa exatamente esse arquivo (case-sensitive match
-    no nome) e ignora a heurística — útil pra casos ambíguos.
+    O nome deve conter **Contrato Crefaz** (duas palavras). Se houver vários,
+    aplica prioridade: ``NN Contrato Crefaz.pdf`` (sem sufixo) > numerado com
+    sufixo > ``Contrato Crefaz.pdf`` > outros.
+
+    `forcar_nome`: se passado, usa exatamente esse arquivo (match exato do nome)
+    e ignora a heurística.
     """
     arquivos = _listar_filhos(service, pasta_id, MIME_PDF)
 
@@ -202,16 +234,26 @@ def localizar_contrato(service, pasta_id: str, forcar_nome: Optional[str] = None
 
     candidatos = [a for a in arquivos if _e_contrato(a["name"])]
 
-    if len(candidatos) == 1:
-        a = candidatos[0]
-        return ArquivoDrive(id=a["id"], name=a["name"], mime_type=a["mimeType"])
+    if not candidatos:
+        raise ContratoNaoEncontrado(
+            "Nenhum PDF na pasta casa o padrão de contrato Crefaz. "
+            "Renomeie o contrato para '09 Contrato Crefaz.pdf' antes de processar."
+        )
 
+    candidatos.sort(key=lambda a: _prioridade_contrato_crefaz(a["name"]))
+    escolhido = candidatos[0]
     if len(candidatos) > 1:
-        raise ContratoAmbiguo([a["name"] for a in candidatos])
+        outros = [a["name"] for a in candidatos[1:]]
+        logger.warning(
+            "Vários PDFs 'Contrato Crefaz' na pasta — usando '%s' (prioridade sobre: %s)",
+            escolhido["name"],
+            outros,
+        )
 
-    raise ContratoNaoEncontrado(
-        "Nenhum PDF na pasta casa o padrão de contrato Crefaz. "
-        "Renomeie o contrato para '09 Contrato Crefaz.pdf' antes de processar."
+    return ArquivoDrive(
+        id=escolhido["id"],
+        name=escolhido["name"],
+        mime_type=escolhido["mimeType"],
     )
 
 
@@ -238,7 +280,7 @@ def localizar_bacen_no_repositorio(service, mes: int, ano: int) -> ArquivoDrive:
             return ArquivoDrive(id=a["id"], name=a["name"], mime_type=a["mimeType"])
     raise BacenNaoEncontrado(
         f"PDF BACEN '{nome_alvo}' não encontrado na pasta Série do Bacen "
-        f"e nem na pasta da cliente. Peça à equipe da Rose para fazer o upload."
+        "e nem na pasta da operação. Peça ao administrador do Drive para disponibilizar o PDF BACEN desse mês."
     )
 
 
@@ -346,3 +388,18 @@ def subir_ou_sobrescrever(
 
 def url_pasta(pasta_id: str) -> str:
     return f"https://drive.google.com/drive/folders/{pasta_id}"
+
+
+def url_arquivo(service, file_id: str) -> str:
+    """Link webView do arquivo no Drive (planilhas abrem no Sheets)."""
+    meta = (
+        service.files()
+        .get(fileId=file_id, fields="webViewLink,id", supportsAllDrives=True)
+        .execute()
+    )
+    return meta.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
+
+
+def contar_arquivos_na_pasta(service, pasta_id: str) -> int:
+    """Total de itens diretos na pasta (arquivos + subpastas), não recursivo."""
+    return len(_listar_filhos(service, pasta_id))

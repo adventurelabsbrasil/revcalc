@@ -24,7 +24,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
-from calculadora_crefaz import drive
+from calculadora_crefaz import __version__ as ENGINE_VERSION, drive
 from calculadora_crefaz.exceptions import (
     AuthError,
     CalculadoraError,
@@ -39,6 +39,7 @@ from .settings import get_settings
 logger = logging.getLogger(__name__)
 
 STATE_COOKIE = "revcalc_oauth_state"
+VERIFIER_COOKIE = "revcalc_oauth_verifier"  # PKCE code_verifier (assinado), par do STATE_COOKIE
 SSE_PING_TIMEOUT = 15  # segundos entre pings p/ manter a conexão SSE viva atrás de proxy
 
 
@@ -89,22 +90,24 @@ def create_app() -> FastAPI:
     @app.get("/healthz")
     async def healthz() -> dict:
         libreoffice = bool(shutil.which("soffice") or shutil.which("libreoffice"))
-        return {"status": "ok", "libreoffice": libreoffice}
+        return {"status": "ok", "libreoffice": libreoffice, "version": ENGINE_VERSION}
 
     # ── OAuth ──
     @app.get("/api/auth/login")
     async def login() -> Response:
-        auth_url, state = auth_web.authorization_url()
+        auth_url, state, code_verifier = auth_web.authorization_url()
         resp = RedirectResponse(auth_url, status_code=302)
-        resp.set_cookie(
-            key=STATE_COOKIE,
-            value=auth_web.assinar_state(state),
+        cookie_kw = dict(
             max_age=auth_web.STATE_MAX_AGE,
             httponly=True,
             secure=s.cookie_secure,
             samesite=s.cookie_samesite,
             domain=s.cookie_domain,
             path="/",
+        )
+        resp.set_cookie(key=STATE_COOKIE, value=auth_web.assinar_state(state), **cookie_kw)
+        resp.set_cookie(
+            key=VERIFIER_COOKIE, value=auth_web.assinar_verifier(code_verifier), **cookie_kw
         )
         return resp
 
@@ -118,12 +121,16 @@ def create_app() -> FastAPI:
         state_recebido = params.get("state")
         state_cookie = request.cookies.get(STATE_COOKIE)
         state_esperado = auth_web.ler_state(state_cookie) if state_cookie else None
+        verifier_cookie = request.cookies.get(VERIFIER_COOKIE)
+        code_verifier = auth_web.ler_verifier(verifier_cookie) if verifier_cookie else None
 
         if not code or not state_recebido or state_recebido != state_esperado:
             return RedirectResponse(f"{s.frontend_origin}/?error=state_invalido", 302)
 
         try:
-            email, creds = auth_web.trocar_code(code, state=state_recebido)
+            email, creds = auth_web.trocar_code(
+                code, state=state_recebido, code_verifier=code_verifier
+            )
         except AuthError as e:
             logger.warning("Login bloqueado: %s", e)
             return RedirectResponse(f"{s.frontend_origin}/?error=dominio_nao_autorizado", 302)
@@ -135,6 +142,7 @@ def create_app() -> FastAPI:
         resp = RedirectResponse(f"{s.frontend_origin}/?logado=1", 302)
         _set_session_cookie(resp, email)
         resp.delete_cookie(key=STATE_COOKIE, domain=s.cookie_domain, path="/")
+        resp.delete_cookie(key=VERIFIER_COOKIE, domain=s.cookie_domain, path="/")
         return resp
 
     @app.post("/api/auth/logout")

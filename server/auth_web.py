@@ -55,19 +55,32 @@ def _flow(state: Optional[str] = None) -> Flow:
     )
 
 
-def authorization_url() -> tuple[str, str]:
-    """URL de consent do Google + o `state` (a guardar em cookie p/ validar no callback)."""
-    auth_url, state = _flow().authorization_url(
+def authorization_url() -> tuple[str, str, str]:
+    """URL de consent do Google + o `state` e o `code_verifier` (PKCE).
+
+    O `state` e o `code_verifier` precisam ser guardados (cookie assinado) e
+    devolvidos no callback: a lib manda o `code_challenge` agora e o Google
+    exige o `code_verifier` correspondente na troca do code — senão a troca
+    falha com invalid_grant "Missing code verifier".
+    """
+    flow = _flow()
+    auth_url, state = flow.authorization_url(
         access_type="offline",        # garante refresh_token
         include_granted_scopes="true",
         prompt="consent",             # força emissão de refresh_token
     )
-    return auth_url, state
+    return auth_url, state, flow.code_verifier
 
 
-def trocar_code(code: str, state: Optional[str] = None):
-    """Troca o authorization code por credenciais; valida domínio. Retorna (email, creds)."""
+def trocar_code(code: str, state: Optional[str] = None, code_verifier: Optional[str] = None):
+    """Troca o authorization code por credenciais; valida domínio. Retorna (email, creds).
+
+    `code_verifier` é o PKCE gerado no /login (persistido em cookie assinado);
+    sem ele o Google rejeita a troca com invalid_grant "Missing code verifier".
+    """
     flow = _flow(state=state)
+    if code_verifier is not None:
+        flow.code_verifier = code_verifier
     flow.fetch_token(code=code)
     creds = flow.credentials
     email = _email_do_token(creds)
@@ -95,6 +108,17 @@ def assinar_state(state: str) -> str:
 def ler_state(token: str) -> Optional[str]:
     try:
         return _serializer().loads(token, salt="oauth-state", max_age=STATE_MAX_AGE)
+    except (BadSignature, SignatureExpired):
+        return None
+
+
+def assinar_verifier(verifier: str) -> str:
+    return _serializer().dumps(verifier, salt="pkce-verifier")
+
+
+def ler_verifier(token: str) -> Optional[str]:
+    try:
+        return _serializer().loads(token, salt="pkce-verifier", max_age=STATE_MAX_AGE)
     except (BadSignature, SignatureExpired):
         return None
 

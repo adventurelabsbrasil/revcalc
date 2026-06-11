@@ -25,3 +25,5 @@ tests/fixtures/*.xlsx
 # OS
 .DS_Store
 Thumbs.db
+.vercel
+.claude/

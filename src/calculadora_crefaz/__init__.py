@@ -1,3 +1,3 @@
-"""Calculadora de Ação Crefaz — MVP para Rose Portal Advocacia."""
+"""RevCalc by Adventure Labs — ferramenta desktop para fluxos de revisão Crefaz."""
 
-__version__ = "0.6.2"
+__version__ = "0.7.0"

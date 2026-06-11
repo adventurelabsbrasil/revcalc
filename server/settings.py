@@ -51,6 +51,16 @@ class Settings:
     cookie_domain: str | None  # ".adventurelabs.com.br" p/ cookie first-party entre subdomínios
     cookie_samesite: str       # "lax" (mesmo site/subdomínio) ou "none" (cross-site)
     cookie_secure: bool
+    # Feedback (opcional) — se ausente, o endpoint /api/feedback responde 503 e o app
+    # segue funcionando. Insere em public.revcalc_feedback via PostgREST + ANON key
+    # (least-privilege: INSERT-only via RLS; a service_role NÃO vive aqui).
+    supabase_url: str | None
+    supabase_anon_key: str | None
+    feedback_table: str
+
+    @property
+    def feedback_enabled(self) -> bool:
+        return bool(self.supabase_url and self.supabase_anon_key)
 
 
 @lru_cache(maxsize=1)
@@ -68,4 +78,7 @@ def get_settings() -> Settings:
         cookie_domain=(os.environ.get("COOKIE_DOMAIN") or "").strip() or None,
         cookie_samesite=os.environ.get("COOKIE_SAMESITE", "lax").strip().lower(),
         cookie_secure=os.environ.get("COOKIE_SECURE", "true").strip().lower() != "false",
+        supabase_url=(os.environ.get("SUPABASE_URL") or "").strip().rstrip("/") or None,
+        supabase_anon_key=(os.environ.get("SUPABASE_ANON_KEY") or "").strip() or None,
+        feedback_table=os.environ.get("REVCALC_FEEDBACK_TABLE", "revcalc_feedback").strip(),
     )

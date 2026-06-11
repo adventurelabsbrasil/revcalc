@@ -50,6 +50,7 @@ Endpoints: `GET /api/feedback/config` (`{enabled}`) · `POST /api/feedback` (ses
 - Técnico / PyInstaller / estrutura do repo → [`README_DEV.md`](README_DEV.md)
 - Fluxo pensado para quem só instala binário + kit Rose → [`cliente-kit/README_USUARIO_FINAL.md`](cliente-kit/README_USUARIO_FINAL.md)
 
+[![tests](https://github.com/adventurelabsbrasil/revcalc/actions/workflows/tests.yml/badge.svg)](https://github.com/adventurelabsbrasil/revcalc/actions/workflows/tests.yml)
 [![Releases](https://img.shields.io/github/v/release/adventurelabsbrasil/revcalc?display_name=release)](https://github.com/adventurelabsbrasil/revcalc/releases)
 [![Baixar ZIP](https://img.shields.io/badge/baixar-codigo_zip-blue)](https://github.com/adventurelabsbrasil/revcalc/archive/refs/heads/main.zip)
 

@@ -1,4 +1,10 @@
-"""Gera o arquivo `12 Log.txt` que vai junto na pasta da cliente."""
+"""Gera o texto formatado de log de uma sessão de processamento.
+
+Em v0.6.9 o `12 Log.txt` deixou de ser salvo na pasta da cliente —
+o audit trail vive na planilha central de runs (Sheets). Este módulo
+permanece disponível para console/debug e pode ser reativado como saída
+.txt no futuro se necessário.
+"""
 
 from __future__ import annotations
 
@@ -35,6 +41,13 @@ class DadosLog:
     arquivos_gerados: list[ArquivoGerado]
     status: str = "SUCESSO"
     timestamp: datetime | None = None  # default: now()
+    duration_sec: float | None = None
+    files_before: int | None = None
+    files_after: int | None = None
+    files_added: int | None = None
+    files_modified: int | None = None
+    master_run_log_url: str | None = None
+    master_run_log_row_appended: bool | None = None
 
     def __post_init__(self):
         if self.timestamp is None:
@@ -82,6 +95,33 @@ cliente (fonte oficial BACEN/SGS), para manter o processo explícito.
 """
 
 
+def _bloco_indicadores(dados: DadosLog) -> str:
+    """Métricas de pasta e duração — linhas vazias se campos ausentes (testes legados)."""
+    linhas: list[str] = []
+    if dados.usuario_email:
+        linhas.append(f"Utilizador que executou: {dados.usuario_email}")
+    if dados.duration_sec is not None:
+        linhas.append(f"Duração (aprox.): {dados.duration_sec:.1f} s")
+    if dados.files_before is not None and dados.files_after is not None:
+        linhas.append(
+            f"Arquivos na pasta (antes → depois): {dados.files_before} → {dados.files_after}"
+        )
+    if dados.files_added is not None and dados.files_modified is not None:
+        linhas.append(
+            f"Novos / sobrescritos (nesta execução): {dados.files_added} / {dados.files_modified}"
+        )
+    if dados.master_run_log_url:
+        linhas.append(f"Planilha central de runs (equipa): {dados.master_run_log_url}")
+    if dados.master_run_log_row_appended is True:
+        linhas.append("Linha registada na planilha central: sim.")
+    elif dados.master_run_log_row_appended is False:
+        linhas.append(
+            "Linha registada na planilha central: não — ver aviso no app ou "
+            "`REVCALC_MASTER_RUN_LOG_SPREADSHEET_ID` / permissões na folha."
+        )
+    return "\n".join(linhas) if linhas else "(métricas não registradas nesta versão do log)"
+
+
 def combinar_log_anterior(conteudo_anterior: str | None, novo_bloco: str) -> str:
     """Concatena histórico existente com novo bloco (append no Drive)."""
     if conteudo_anterior is None or not conteudo_anterior.strip():
@@ -104,11 +144,11 @@ def gerar_log(dados: DadosLog) -> str:
     apos_por = f"\n{prefixo_aviso}" if prefixo_aviso else "\n\n"
 
     txt = f"""\
-Calculadora de Ação Crefaz — MVP v{__version__}
+RevCalc by Adventure Labs — v{__version__}
 =========================================
 
 Processado em: {dados.timestamp.strftime("%Y-%m-%d %H:%M:%S")} BRT
-Por: {dados.usuario_email}{apos_por}CLIENTE
+Executado por (conta Google): {dados.usuario_email}{apos_por}CLIENTE
 -------
 Nome: {contrato.nome_emitente}
 Pasta no Drive: {dados.pasta_drive_path}
@@ -150,13 +190,16 @@ ARQUIVOS GERADOS NESTA EXECUÇÃO
 -------------------------------
 {chr(10).join(arquivos_lines)}
 
+INDICADORES (esta execução)
+---------------------------
+{_bloco_indicadores(dados)}
+
 CAPTURAS
 --------
-Geradas automaticamente na pasta da cliente:
-  - 13 Print {dados.aba_template}.pdf      (PDF unificado, paisagem A4)
-  - 13 Print {dados.aba_template}*.png     (1 PNG por página, 150 DPI)
-Se ausentes em ARQUIVOS GERADOS acima, LibreOffice não estava
-disponível quando o cálculo rodou — XLSX e log seguem válidos.
+Geradas automaticamente na pasta da cliente (quando LibreOffice disponível):
+  - 13 Print {dados.aba_template}.pdf — impressão da planilha completa (PDF)
+  - imag.01.png — trecho Item II do PDF do contrato Crefaz
+Se faltarem acima, o XLSX continua válido.
 
 STATUS: {dados.status}
 """

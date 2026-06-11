@@ -26,7 +26,6 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +162,7 @@ def gerar_capturas(
     *,
     dpi: int = 150,
     nome_aba: str = "CÁLCULO",
+    incluir_png_pagina_inteira: bool = True,
 ) -> CapturasGeradas:
     """Gera PDF + PNGs a partir de um XLSX em memória.
 
@@ -170,6 +170,7 @@ def gerar_capturas(
         xlsx_bytes: bytes do XLSX (geralmente saída de `planilha.gerar_xlsx`).
         dpi: resolução das PNGs. 150 dá legibilidade sólida com peso ~300KB/página.
         nome_aba: nome da aba visual (usado pra compor nome dos PNGs).
+        incluir_png_pagina_inteira: se False, só gera o PDF (economiza rasterização).
 
     Returns:
         `CapturasGeradas` com `pdf_bytes` e `pngs` (uma entrada por página de impressão).
@@ -179,6 +180,13 @@ def gerar_capturas(
         CapturasError: outra falha durante a conversão.
     """
     pdf_bytes = _xlsx_para_pdf(xlsx_bytes)
+    if not incluir_png_pagina_inteira:
+        logger.info(
+            "Capturas: apenas PDF (%d KB), PNG de página inteira omitido.",
+            len(pdf_bytes) // 1024,
+        )
+        return CapturasGeradas(pdf_bytes=pdf_bytes, pngs=[])
+
     paginas_raw = _pdf_para_pngs(pdf_bytes, dpi=dpi)
 
     pngs: list[CapturaPng] = []
@@ -249,30 +257,6 @@ def _trim_whitespace(png_bytes: bytes, *, padding_px: int = 12) -> tuple[bytes, 
     return buf.getvalue(), cropped.size[0], cropped.size[1]
 
 
-def _concat_pngs_verticalmente(
-    paginas_raw: list[tuple[bytes, int, int]],
-) -> tuple[bytes, int, int]:
-    """Concatena páginas PNG verticalmente em uma única imagem."""
-    import io
-    from PIL import Image
-
-    if not paginas_raw:
-        raise CapturasError("Sem páginas para concatenar.")
-
-    imagens = [Image.open(io.BytesIO(png)).convert("RGB") for png, _, _ in paginas_raw]
-    largura = max(img.size[0] for img in imagens)
-    altura = sum(img.size[1] for img in imagens)
-    canvas = Image.new("RGB", (largura, altura), (255, 255, 255))
-    y = 0
-    for img in imagens:
-        canvas.paste(img, (0, y))
-        y += img.size[1]
-
-    out = io.BytesIO()
-    canvas.save(out, format="PNG", optimize=True)
-    return out.getvalue(), largura, altura
-
-
 def gerar_capturas_regionais(
     xlsx_bytes: bytes,
     regioes: dict[str, str],
@@ -280,7 +264,7 @@ def gerar_capturas_regionais(
     nome_aba: str = "CÁLCULO",
     dpi: int = 150,
     trim: bool = True,
-    on_status: Callable[[str], None] | None = None,
+    nomes_arquivo: dict[str, str] | None = None,
 ) -> list[CapturaPng]:
     """Gera 1 PNG por região, alterando print_area temporariamente.
 
@@ -309,10 +293,7 @@ def gerar_capturas_regionais(
     from openpyxl.utils import column_index_from_string, range_boundaries
 
     saidas: list[CapturaPng] = []
-    total = len(regioes)
-    for idx, (label, range_xlsx) in enumerate(regioes.items(), start=1):
-        if on_status:
-            on_status(f"Captura regional {idx}/{total}: {label}...")
+    for label, range_xlsx in regioes.items():
         # 1. Carrega + ajusta print_area
         wb = load_workbook(BytesIO(xlsx_bytes))
         if nome_aba not in wb.sheetnames:
@@ -334,27 +315,36 @@ def gerar_capturas_regionais(
             ws.page_setup.orientation = "landscape"
         ws.page_setup.paperSize = 9  # A4
 
-        # Força altura mínima das rows na região. Blocos do template têm rows
-        # com 3pt usadas só pra mesclagem vertical de fórmulas expandidas;
-        # sem ajuste, o conteúdo fica comprimido/invisível no PDF.
-        # Heurística: se o range tem muitas linhas curtas (típico fórmula PMT
-        # expandida com letras "n", "i", "1+i^n", etc.), bump pra 18pt;
-        # senão, 12pt basta pra blocos de tabela compactos.
-        rows_curtas = sum(
-            1 for r in range(row_min, row_max + 1)
-            if (ws.row_dimensions[r].height or 0) > 0
-            and (ws.row_dimensions[r].height or 0) < 6
-        )
-        altura_min_pt = 18 if rows_curtas >= 5 else 12
+        # Rows compactas (~3pt) na região PMT: distribuir altura dentro do espaço
+        # útil A4 portrait (~720pt) em vez de fixar 12/18pt para todas as linhas.
+        AREA_UTIL_PT = 720
+        rows_curtas_idx = [
+            r
+            for r in range(row_min, row_max + 1)
+            if 0 < (ws.row_dimensions[r].height or 0) < 6
+        ]
+        rows_normais_total = 0.0
         for r in range(row_min, row_max + 1):
-            h = ws.row_dimensions[r].height
-            if h is None or h < altura_min_pt:
-                ws.row_dimensions[r].height = altura_min_pt
-        # Blocos matemáticos longos: permitir múltiplas páginas e concatenar depois.
-        bloco_longo = label in ("04 Conforme Pactuado", "05 Parcela Taxa Media")
-        # Cabe em 1 página (default)
+            if r in rows_curtas_idx:
+                continue
+            rh = ws.row_dimensions[r].height
+            rows_normais_total += float(rh) if rh else 15.0
+        espaco_para_curtas = AREA_UTIL_PT - rows_normais_total
+        n_curtas = len(rows_curtas_idx)
+        if n_curtas > 0 and espaco_para_curtas > 0:
+            altura_curta = max(8, min(18, int(espaco_para_curtas // n_curtas)))
+        else:
+            altura_curta = 18 if n_curtas >= 5 else 12
+        for r in range(row_min, row_max + 1):
+            if r in rows_curtas_idx:
+                ws.row_dimensions[r].height = altura_curta
+            else:
+                h = ws.row_dimensions[r].height
+                if h is None or h < 12:
+                    ws.row_dimensions[r].height = max(h or 0, 12)
+        # Cabe em 1 página
         ws.page_setup.fitToWidth = 1
-        ws.page_setup.fitToHeight = 2 if bloco_longo else 1
+        ws.page_setup.fitToHeight = 1
         ws.sheet_properties.pageSetUpPr.fitToPage = True
         # Limpa header/footer pra não aparecer "Cálculo de Ação Crefaz" / "Página 1 de 1"
         for hf_attr in ("oddHeader", "oddFooter", "evenHeader", "evenFooter"):
@@ -383,24 +373,17 @@ def gerar_capturas_regionais(
             paginas_raw = _pdf_para_pngs(pdf_bytes, dpi=dpi)
         except CapturasError as e:
             logger.warning("Falha ao gerar região %s (%s): %s", label, range_xlsx, e)
-            if on_status:
-                on_status(f"Captura regional {idx}/{total} falhou: {label}.")
             continue
 
         if not paginas_raw:
             logger.warning("Região %s gerou 0 páginas — ignorada.", label)
-            if on_status:
-                on_status(f"Captura regional {idx}/{total} sem páginas: {label}.")
             continue
 
-        # 3. Primeira página (default) ou concatenação vertical (blocos longos)
-        if bloco_longo and len(paginas_raw) > 1:
-            png_bytes, w, h = _concat_pngs_verticalmente(paginas_raw)
-        else:
-            png_bytes, w, h = paginas_raw[0]
+        # 3. Primeira página + trim
+        png_bytes, w, h = paginas_raw[0]
         if trim:
             png_bytes, w, h = _trim_whitespace(png_bytes)
-        nome = f"13 Print {label}.png"
+        nome = (nomes_arquivo or {}).get(label, f"13 Print {label}.png")
         saidas.append(
             CapturaPng(
                 nome_arquivo=nome,
@@ -414,8 +397,6 @@ def gerar_capturas_regionais(
             "Região %s capturada: %s (%dx%d, %d KB)",
             label, nome, w, h, len(png_bytes) // 1024,
         )
-        if on_status:
-            on_status(f"Captura regional {idx}/{total} concluída: {label}.")
 
     return saidas
 
@@ -444,6 +425,7 @@ def capturar_pagina_pdf(
         `CapturaPng` da primeira página que casa, ou None se não encontrar.
     """
     import io
+    import math
     import re
     try:
         import pypdfium2 as pdfium
@@ -457,28 +439,64 @@ def capturar_pagina_pdf(
     pattern = re.compile(marcador_regex, re.IGNORECASE)
 
     # Procura página por página + localização vertical dos marcadores
+    # pdfplumber: origem no canto superior esquerdo, eixo y para baixo.
+    # pypdfium2 crop: tupla (left, bottom, right, top) = quantidade recortada de cada borda,
+    # em unidades do canvas PDF — NÃO é caixa (x0,y0,x1,y1). Ver PdfPage.render().
     pagina_alvo: int | None = None  # 0-indexed
-    y_inicio: float | None = None
-    y_fim: float | None = None
+    h_plumb: float | None = None
+    y_inicio_plumb: float | None = None
+    y_fim_plumb: float | None = None
     fim_pattern = re.compile(marcador_fim_regex, re.IGNORECASE) if marcador_fim_regex else None
+
+    def _words_agrupados_em_linhas(words: list[dict]) -> list[tuple[float, str, list[float], list[float]]]:
+        """Agrupa extract_words por faixa de top (~2pt); cada tupla = (bucket, texto_linha, tops, bottoms)."""
+        buckets: dict[float, list[dict]] = {}
+        for w in words:
+            top = float(w.get("top", 0))
+            b = round(top / 2.0) * 2.0
+            buckets.setdefault(b, []).append(w)
+        saida: list[tuple[float, str, list[float], list[float]]] = []
+        for b in sorted(buckets.keys()):
+            chunk = sorted(buckets[b], key=lambda x: float(x.get("x0", 0)))
+            line_text = " ".join(x.get("text", "") for x in chunk).strip()
+            tops = [float(x["top"]) for x in chunk]
+            bottoms = [float(x["bottom"]) for x in chunk]
+            saida.append((b, line_text, tops, bottoms))
+        return saida
 
     with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
         for i, page in enumerate(pdf.pages):
             texto = page.extract_text() or ""
-            if pattern.search(texto):
-                pagina_alvo = i
-                try:
-                    words = page.extract_words() or []
-                except Exception:
-                    words = []
-                tops = [w["top"] for w in words if pattern.search(w.get("text", ""))]
-                if tops:
-                    y_inicio = max(0.0, min(tops) - 10.0)
-                if fim_pattern:
-                    bottoms = [w["bottom"] for w in words if fim_pattern.search(w.get("text", ""))]
-                    if bottoms:
-                        y_fim = max(bottoms) + 12.0
-                break
+            if not pattern.search(texto):
+                continue
+            pagina_alvo = i
+            h_plumb = float(page.height)
+            try:
+                words = page.extract_words() or []
+            except Exception:
+                words = []
+            line_rows = _words_agrupados_em_linhas(words)
+            for _bk, line_text, tops, _bottoms in line_rows:
+                if pattern.search(line_text):
+                    if tops:
+                        y_inicio_plumb = max(0.0, min(tops) - 10.0)
+                    break
+            if y_inicio_plumb is None:
+                y_inicio_plumb = 0.0
+            if fim_pattern:
+                for _bk, line_text, tops, bottoms in line_rows:
+                    if not fim_pattern.search(line_text):
+                        continue
+                    if y_inicio_plumb is not None and tops and max(tops) <= y_inicio_plumb:
+                        continue
+                    if tops:
+                        # v0.7.0: corta ACIMA do marcador de fim (ex.: "III. CUSTO
+                        # EFETIVO TOTAL") — captura só a seção pedida (II), sem vazar
+                        # o cabeçalho/tabela da seção seguinte. Antes usava
+                        # max(bottoms)+12 e incluía a linha do III.
+                        y_fim_plumb = max(y_inicio_plumb + 10.0, min(tops) - 4.0)
+                        break
+            break
 
     if pagina_alvo is None:
         logger.warning(
@@ -491,16 +509,36 @@ def capturar_pagina_pdf(
     pdf = pdfium.PdfDocument(pdf_bytes)
     page = pdf[pagina_alvo]
     page_h = float(page.get_height())
-    if y_inicio is None:
-        y_inicio = 0.0
-    if y_fim is None or y_fim <= y_inicio:
-        y_fim = min(page_h, y_inicio + page_h * altura_fallback_ratio)
-    y_inicio = max(0.0, min(y_inicio, page_h))
-    y_fim = max(y_inicio + 10.0, min(y_fim, page_h))
+
+    if y_inicio_plumb is None:
+        y_inicio_plumb = 0.0
+    if y_fim_plumb is None or y_fim_plumb <= y_inicio_plumb:
+        y_fim_plumb = min(h_plumb or page_h, y_inicio_plumb + (h_plumb or page_h) * altura_fallback_ratio)
+
+    y_inicio_plumb = max(0.0, min(y_inicio_plumb, h_plumb or page_h))
+    y_fim_plumb = max(y_inicio_plumb + 10.0, min(y_fim_plumb, h_plumb or page_h))
+
+    # Mapeia faixa vertical do pdfplumber para altura reportada pelo PDFium (podem diferir em pts).
+    def _y_plumb_para_pdfium(y: float) -> float:
+        hp = h_plumb if h_plumb > 0 else page_h
+        if hp <= 0:
+            return 0.0
+        return (y / hp) * page_h
+
+    y0 = _y_plumb_para_pdfium(y_inicio_plumb)
+    y1 = _y_plumb_para_pdfium(y_fim_plumb)
+    # Recortes: topo da página e base (unidades PDF, mesmas de get_width/get_height).
+    top_cut = max(0.0, min(y0, page_h))
+    bottom_cut = max(0.0, min(page_h - y1, page_h))
+    # Replica o ceil interno do pypdfium2: soma dos cortes em px deve deixar altura ≥ 1.
+    scale = dpi / 72.0
+    src_height_px = math.ceil(page_h * scale)
+    if src_height_px - math.ceil(bottom_cut * scale) - math.ceil(top_cut * scale) < 1:
+        top_cut, bottom_cut = 0.0, 0.0
 
     img = page.render(
-        scale=dpi / 72.0,
-        crop=(0.0, y_inicio, float(page.get_width()), y_fim),
+        scale=scale,
+        crop=(0.0, bottom_cut, 0.0, top_cut),
     ).to_pil()
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)

@@ -8,11 +8,13 @@ from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
 from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
 from openpyxl.workbook import Workbook
 
 from .calculadora import decidir_aba
 from .config import (
     CELULAS_DADOS,
+    NOME_ABA_CALCULO,
     NOME_ABA_DADOS,
     TEMPLATE_PATH,
     celulas_para_aba,
@@ -20,6 +22,11 @@ from .config import (
 from .parser_contrato import DadosContrato
 
 logger = logging.getLogger(__name__)
+
+# Tabelas lado a lado na linha 130+ — mesmas linhas físicas para os 3 blocos.
+_ROW_PARCELAS_INICIO = 132
+_ROW_PARCELAS_FIM = 155
+_REF_PARCELA_IDX = 131  # ROW()-131 = índice da parcela
 
 
 @dataclass
@@ -100,6 +107,36 @@ def _preencher_aba(ws, aba: str, dados: DadosPlanilha) -> None:
     ws[celulas["parcelas_pagas"]] = dados.parcelas_pagas
 
 
+def _corrigir_tabelas_parcelas_e_colunas(ws, aba: str) -> None:
+    """Alinha fórmulas ao template ativo: AD dinâmico; BE/BF só até parcelas pagas; colunas C–L visíveis.
+
+    - PARCELAS RECALCULADAS (AD): índice como coluna C (sem números fixos).
+    - VALORES PAGOS (BE/BF): só mostra linhas até `$BL$8` parcelas pagas.
+    - Remove `hidden` em colunas C–L (defeito de impressão no template).
+    - Oculta linha 5 (“Data do 1º vencimento”) — só datas pactuação/cálculo no cabeçalho.
+    - Expoentes na linha visual da fórmula PMT: referência a `$I$15` (evita ## por coluna estreita).
+    """
+    if aba != NOME_ABA_CALCULO or ws.title != NOME_ABA_CALCULO:
+        return
+    idx = f"ROW()-{_REF_PARCELA_IDX}"
+    for r in range(_ROW_PARCELAS_INICIO, _ROW_PARCELAS_FIM + 1):
+        ws[f"AD{r}"] = f'=IF({idx}>$I$15,"",{idx})'
+        ws[f"BE{r}"] = f'=IF({idx}>$I$15,"",IF({idx}<=$BL$8,{idx},""))'
+        ws[f"BF{r}"] = f'=IF(BE{r}="","",AE{r})'
+    for col in range(3, 13):
+        letter = get_column_letter(col)
+        ws.column_dimensions[letter].hidden = False
+
+    ws.row_dimensions[5].hidden = True
+
+    # Expoentes na linha visual PMT: referência a $I$15 (evita ## por coluna estreita).
+    ws["U41"] = "=$I$15"
+    ws["AV41"] = "=$I$15"
+    for letter in ("U", "V", "AV", "AW"):
+        cur = ws.column_dimensions[letter].width
+        ws.column_dimensions[letter].width = max(float(cur or 8), 10.0)
+
+
 def _preencher_aba_dados(ws, dados: DadosPlanilha) -> None:
     """Escreve apenas na aba DADOS — a aba PRICE deve usar fórmulas =DADOS!..."""
     c = CELULAS_DADOS
@@ -154,6 +191,7 @@ def gerar_xlsx(dados: DadosPlanilha, template_path: Path | None = None) -> bytes
         _preencher_aba(ws, aba, dados)
 
     _forcar_landscape(ws, aba)
+    _corrigir_tabelas_parcelas_e_colunas(ws, aba)
 
     # Força recálculo na abertura — sem isso, openpyxl salva o XLSX sem
     # calcChain.xml e a primeira renderização (LibreOffice headless ou

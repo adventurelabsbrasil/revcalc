@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import ProgressLog, { LogLine } from "@/components/ProgressLog";
 import {
   fetchMe,
+  fetchVersion,
   fullEventsUrl,
   loginUrl,
   logout,
@@ -31,6 +32,7 @@ export default function Home() {
     null
   );
   const [banner, setBanner] = useState<string | null>(null);
+  const [ver, setVer] = useState<string | null>(null);
 
   const esRef = useRef<EventSource | null>(null);
   const finishedRef = useRef(false);
@@ -41,6 +43,7 @@ export default function Home() {
     if (err) setBanner(ERROS_QUERY[err] ?? "Não foi possível entrar.");
     window.history.replaceState({}, "", window.location.pathname);
     fetchMe().then(setMe);
+    fetchVersion().then(setVer);
     return () => esRef.current?.close();
   }, []);
 
@@ -143,7 +146,10 @@ export default function Home() {
   return (
     <main>
       <div className="topbar">
-        <span>Rose Portal Advocacia</span>
+        <span>
+          Rose Portal Advocacia
+          {ver && <small style={{ opacity: 0.6, marginLeft: 8 }}>v{ver}</small>}
+        </span>
         {me && (
           <span>
             {me.email}{" "}

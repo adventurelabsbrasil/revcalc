@@ -1,6 +1,11 @@
 """Feedback do app → Supabase (public.revcalc_feedback).
 
-Insere via PostgREST com a service_role key (server-side; nunca exposta ao browser).
+Insere via PostgREST com a ANON key (não a service_role) — least-privilege: a anon
+só consegue INSERT (policy revcalc_feedback_insert_anon), não lê nem toca outra
+tabela. A service_role NÃO vive aqui de propósito (bypassaria o RLS do banco
+inteiro num container client-facing). Usa Prefer: return=minimal porque a anon não
+tem SELECT/RETURNING na tabela.
+
 Degrada gracioso: se o Supabase não estiver configurado, `enabled()` é False e o
 endpoint responde 503 sem derrubar o resto do app.
 """
@@ -96,18 +101,18 @@ async def registrar(
 
     url = f"{s.supabase_url}/rest/v1/{s.feedback_table}"
     headers = {
-        "apikey": s.supabase_service_key,
-        "Authorization": f"Bearer {s.supabase_service_key}",
+        "apikey": s.supabase_anon_key,
+        "Authorization": f"Bearer {s.supabase_anon_key}",
         "Content-Type": "application/json",
-        "Prefer": "return=representation",
+        "Prefer": "return=minimal",  # anon não tem SELECT/RETURNING na tabela
     }
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.post(url, headers=headers, json=row)
 
-    if resp.status_code not in (200, 201):
+    # return=minimal → 201 com corpo vazio no sucesso.
+    if resp.status_code not in (200, 201, 204):
         logger.error("Feedback insert falhou: %s %s", resp.status_code, resp.text[:500])
         raise FeedbackError(f"Falha ao gravar o feedback (HTTP {resp.status_code}).")
 
-    data = resp.json()
-    return data[0] if isinstance(data, list) and data else {"ok": True}
+    return {"ok": True}

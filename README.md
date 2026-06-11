@@ -30,11 +30,16 @@ equipe"** que envia em um clique (`origem=auto`, anexando as linhas de log da ru
 
 **Destino:** Supabase `public.revcalc_feedback` (projeto `ftctmseyrqhckutpfdeq`), **não** GitHub.
 Decisão: contém PII (advogados → dado financeiro de clientes), evita spam de issues nos
-auto-reportes e mantém o secret server-side (a service_role já existe). Triagem nossa promove
-itens curados a issue do GitHub manualmente. O backend insere via PostgREST + service_role
-(`server/feedback.py`); a chave **nunca** vai ao browser. DDL em [`db/revcalc_feedback.sql`](db/revcalc_feedback.sql)
-(RLS service-only, aditiva/reversível). Se `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` não
-estiverem setados, `/api/feedback` responde 503 e o resto do app segue normal.
+auto-reportes e mantém a triagem do nosso lado (promoção curada a issue do GitHub é manual).
+
+**Segurança (least-privilege):** o backend insere via PostgREST com a **anon key** + uma policy
+**INSERT-only** (`revcalc_feedback_insert_anon`) — **não** a service_role. A service_role
+bypassaria o RLS do banco inteiro (Sueli, financeiro, Dino) e não deve viver num container
+client-facing; se a anon vazar, só dá pra inserir feedback (não lê nada nem toca outra tabela).
+A chave **nunca** vai ao browser (o front chama o backend). DDL em
+[`db/revcalc_feedback.sql`](db/revcalc_feedback.sql) (aditiva/reversível). Se
+`SUPABASE_URL`/`SUPABASE_ANON_KEY` não estiverem setados, `/api/feedback` responde 503 e o resto
+do app segue normal.
 
 Endpoints: `GET /api/feedback/config` (`{enabled}`) · `POST /api/feedback` (sessão obrigatória).
 

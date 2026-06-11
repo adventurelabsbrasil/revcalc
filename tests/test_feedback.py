@@ -16,7 +16,7 @@ from server import feedback
 def _fake_settings(enabled: bool = True) -> SimpleNamespace:
     return SimpleNamespace(
         supabase_url="https://proj.supabase.co",
-        supabase_service_key="svc-key" if enabled else None,
+        supabase_anon_key="anon-key" if enabled else None,
         feedback_table="revcalc_feedback",
         feedback_enabled=enabled,
     )
@@ -83,7 +83,7 @@ def test_insert_ok_monta_row_e_headers(monkeypatch):
     import asyncio
 
     monkeypatch.setattr(feedback, "get_settings", lambda: _fake_settings())
-    _FakeClient._resp = _FakeResp(201, [{"id": "abc-123", "tipo": "bug"}])
+    _FakeClient._resp = _FakeResp(201, "")  # return=minimal → corpo vazio
     monkeypatch.setattr(feedback.httpx, "AsyncClient", _FakeClient)
 
     out = asyncio.run(
@@ -95,11 +95,12 @@ def test_insert_ok_monta_row_e_headers(monkeypatch):
             contexto={"url": "https://revcalc/x"},
         )
     )
-    assert out["id"] == "abc-123"
+    assert out["ok"] is True
     call = _FakeClient.last_call
     assert call["url"].endswith("/rest/v1/revcalc_feedback")
-    assert call["headers"]["apikey"] == "svc-key"
-    assert call["headers"]["Authorization"] == "Bearer svc-key"
+    assert call["headers"]["apikey"] == "anon-key"
+    assert call["headers"]["Authorization"] == "Bearer anon-key"
+    assert call["headers"]["Prefer"] == "return=minimal"
     assert call["json"]["tipo"] == "bug"  # normalizado
     assert call["json"]["email"] == "user@roseportaladvocacia.com.br"
     assert call["json"]["app_version"]  # versão anexada
@@ -110,7 +111,7 @@ def test_auto_sem_mensagem_ok(monkeypatch):
     import asyncio
 
     monkeypatch.setattr(feedback, "get_settings", lambda: _fake_settings())
-    _FakeClient._resp = _FakeResp(201, [{"id": "auto-1"}])
+    _FakeClient._resp = _FakeResp(201, "")
     monkeypatch.setattr(feedback.httpx, "AsyncClient", _FakeClient)
 
     out = asyncio.run(
@@ -119,7 +120,7 @@ def test_auto_sem_mensagem_ok(monkeypatch):
             contexto={"erro": "boom"},
         )
     )
-    assert out["id"] == "auto-1"
+    assert out["ok"] is True
     assert _FakeClient.last_call["json"]["origem"] == "auto"
 
 

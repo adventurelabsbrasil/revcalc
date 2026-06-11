@@ -1,9 +1,11 @@
 -- revcalc_feedback — caixa de feedback do app (Melhoria / Falha / Log de erro / Dúvida).
 --
 -- Projeto Supabase canônico: ftctmseyrqhckutpfdeq (Adventure).
--- O backend FastAPI (server/feedback.py) insere via PostgREST com a service_role key
--- — nunca exposto ao browser. RLS é service-only (espelha o padrão das tabelas adv_*):
--- sem policy para anon/authenticated, então só a service_role (que bypassa RLS) lê/escreve.
+-- O backend FastAPI (server/feedback.py) insere via PostgREST com a ANON key
+-- (não a service_role) + uma policy INSERT-only. Least-privilege deliberado: a
+-- service_role bypassa o RLS do banco INTEIRO (Sueli, financeiro, Dino...) e não
+-- deve viver num container client-facing. Com a anon key, um vazamento só permite
+-- INSERT em revcalc_feedback — não lê nada nem toca outra tabela (RLS das demais).
 --
 -- Aditiva e reversível: DROP TABLE public.revcalc_feedback; desfaz tudo.
 -- Aplicar via MCP apply_migration (gated, OK do founder) — não auto.
@@ -29,4 +31,14 @@ CREATE INDEX IF NOT EXISTS revcalc_feedback_created_idx ON public.revcalc_feedba
 CREATE INDEX IF NOT EXISTS revcalc_feedback_status_idx  ON public.revcalc_feedback (status);
 
 ALTER TABLE public.revcalc_feedback ENABLE ROW LEVEL SECURITY;
--- Intencional: nenhuma policy. anon/authenticated não acessam; só service_role (backend).
+
+-- INSERT-only para anon (a chave que o app carrega). Sem policy de SELECT/UPDATE/
+-- DELETE → anon não lê nem altera. service_role (triagem nossa via MCP/console)
+-- bypassa o RLS normalmente. Por isso o backend usa Prefer: return=minimal (não
+-- há RETURNING/SELECT permitido p/ anon).
+DROP POLICY IF EXISTS revcalc_feedback_insert_anon ON public.revcalc_feedback;
+CREATE POLICY revcalc_feedback_insert_anon
+  ON public.revcalc_feedback
+  FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);

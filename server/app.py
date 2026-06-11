@@ -6,6 +6,8 @@ Rotas:
   GET  /api/auth/callback            — troca code, valida domínio, seta cookie de sessão
   POST /api/auth/logout              — limpa cookie + apaga token
   GET  /api/me                       — { email } do usuário logado (401 se não)
+  GET  /api/feedback/config          — { enabled } p/ o front saber se mostra a caixa
+  POST /api/feedback                 — registra feedback (feat/bug/erro_sistema/duvida)
   POST /api/run                      — inicia run; pré-check de dedup → 409
   GET  /api/run/{id}/events?t=token  — SSE com o progresso ao vivo
 
@@ -32,7 +34,7 @@ from calculadora_crefaz.exceptions import (
     PastaNaoEncontrada,
 )
 
-from . import auth_web, token_store
+from . import auth_web, feedback, token_store
 from .sessions import FIM, manager
 from .settings import get_settings
 
@@ -76,7 +78,7 @@ def _email_da_sessao(request: Request) -> Optional[str]:
 
 def create_app() -> FastAPI:
     s = get_settings()
-    app = FastAPI(title="Calculadora Crefaz — API", version="0.7.0")
+    app = FastAPI(title="Calculadora Crefaz — API", version=ENGINE_VERSION)
 
     app.add_middleware(
         CORSMiddleware,
@@ -160,6 +162,42 @@ def create_app() -> FastAPI:
         if not email:
             return JSONResponse({"error": "nao_autenticado"}, status_code=401)
         return JSONResponse({"email": email})
+
+    # ── Feedback ──
+    @app.get("/api/feedback/config")
+    async def feedback_config() -> Response:
+        return JSONResponse({"enabled": feedback.enabled()})
+
+    @app.post("/api/feedback")
+    async def feedback_submit(request: Request) -> Response:
+        email = _email_da_sessao(request)
+        if not email:
+            return JSONResponse({"error": "nao_autenticado"}, status_code=401)
+
+        try:
+            body = await request.json()
+        except Exception:  # noqa: BLE001
+            body = {}
+
+        try:
+            criado = await feedback.registrar(
+                tipo=body.get("tipo"),
+                mensagem=body.get("mensagem"),
+                email=email,
+                origem=body.get("origem", "manual"),
+                contexto=body.get("contexto"),
+            )
+        except feedback.FeedbackIndisponivel as e:
+            return JSONResponse({"error": str(e)}, status_code=503)
+        except feedback.FeedbackError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+        except Exception:  # noqa: BLE001
+            logger.exception("Falha inesperada no feedback")
+            return JSONResponse(
+                {"error": "Não foi possível registrar o feedback agora."}, status_code=500
+            )
+
+        return JSONResponse({"ok": True, "id": criado.get("id")}, status_code=201)
 
     # ── Run ──
     @app.post("/api/run")

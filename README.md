@@ -1,6 +1,6 @@
 # Calculadora de Ação Crefaz
 
-**Versão atual:** `v0.7.0` · **Cliente:** Rose Portal Advocacia  
+**Versão atual:** `v0.8.0` · **Cliente:** Rose Portal Advocacia  
 
 Automatiza o cálculo de revisão de contratos **Crefaz**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica.
 
@@ -18,7 +18,25 @@ O **engine de cálculo** (`src/calculadora_crefaz/`) é o mesmo do desktop, roda
 
 **Deploy:** backend `docker compose up -d --build` no xeon (`.env` renderizado do Infisical) + túnel `cloudflared` (systemd `--user`); front `vercel --prod` (rootDir `web`, env `NEXT_PUBLIC_API_BASE`). Detalhes em [`server/README.md`](server/README.md) e [`web/README.md`](web/README.md).
 
-**Saída na pasta da cliente (v0.7.0):** `10 Cálculo NOME.xlsx` · `13 Print CÁLCULO.pdf` · `imag.01.png` (Item II do contrato, recorte só da seção) · `imag.02.png` (bloco "Parcela com Taxa Média e Expurgo").
+**Saída na pasta da cliente:** `10 Cálculo NOME.xlsx` · `13 Print CÁLCULO.pdf` · `imag.01.png` (Item II do contrato, recorte só da seção) · `imag.02.png` (bloco "Parcela com Taxa Média e Expurgo").
+
+### 📨 Feedback do usuário (v0.8.0)
+
+A web tem uma **página de feedback** (`/feedback`, link no topo) onde o usuário escolhe o tipo
+num dropdown — **Melhoria** (`feat`) · **Falha** (`bug`) · **Log de erro** (`erro_sistema`) ·
+**Dúvida** (`duvida`) — e escreve a mensagem. Além disso, quando o **próprio sistema detecta um
+erro** durante o cálculo (SSE cai, run falha), aparece um botão **"📨 Reportar este erro pra
+equipe"** que envia em um clique (`origem=auto`, anexando as linhas de log da run).
+
+**Destino:** Supabase `public.revcalc_feedback` (projeto `ftctmseyrqhckutpfdeq`), **não** GitHub.
+Decisão: contém PII (advogados → dado financeiro de clientes), evita spam de issues nos
+auto-reportes e mantém o secret server-side (a service_role já existe). Triagem nossa promove
+itens curados a issue do GitHub manualmente. O backend insere via PostgREST + service_role
+(`server/feedback.py`); a chave **nunca** vai ao browser. DDL em [`db/revcalc_feedback.sql`](db/revcalc_feedback.sql)
+(RLS service-only, aditiva/reversível). Se `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` não
+estiverem setados, `/api/feedback` responde 503 e o resto do app segue normal.
+
+Endpoints: `GET /api/feedback/config` (`{enabled}`) · `POST /api/feedback` (sessão obrigatória).
 
 > As seções abaixo descrevem o **fluxo desktop legado** (`.exe`/PyInstaller) — mantidas como referência; o caminho atual é a web acima.
 

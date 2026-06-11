@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import ProgressLog, { LogLine } from "@/components/ProgressLog";
 import {
   fetchMe,
@@ -10,6 +11,7 @@ import {
   logout,
   Me,
   RunResult,
+  sendFeedback,
   startRun,
 } from "@/lib/api";
 
@@ -33,9 +35,12 @@ export default function Home() {
   );
   const [banner, setBanner] = useState<string | null>(null);
   const [ver, setVer] = useState<string | null>(null);
+  // Auto-reporte de erro do sistema: 'idle' | 'sending' | 'sent' | 'failed'
+  const [report, setReport] = useState<"idle" | "sending" | "sent" | "failed">("idle");
 
   const esRef = useRef<EventSource | null>(null);
   const finishedRef = useRef(false);
+  const linesRef = useRef<LogLine[]>([]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -48,7 +53,26 @@ export default function Home() {
   }, []);
 
   function addLine(line: LogLine) {
-    setLines((prev) => [...prev, line]);
+    setLines((prev) => {
+      const next = [...prev, line];
+      linesRef.current = next;
+      return next;
+    });
+  }
+
+  async function reportarErro(mensagemErro: string) {
+    setReport("sending");
+    const logTxt = linesRef.current
+      .map((l) => `[${l.level}] ${l.message}`)
+      .join("\n")
+      .slice(-4000);
+    const res = await sendFeedback({
+      tipo: "erro_sistema",
+      origem: "auto",
+      mensagem: `Erro detectado pelo sistema: ${mensagemErro}`,
+      contexto: { erro: mensagemErro, log: logTxt },
+    });
+    setReport(res.kind === "ok" ? "sent" : "failed");
   }
 
   function abrirStream(eventsPath: string) {
@@ -99,6 +123,8 @@ export default function Home() {
     setResult(null);
     setDedup(null);
     setLines([]);
+    linesRef.current = [];
+    setReport("idle");
     setRunning(true);
 
     const res = await startRun(nome.trim(), forcar);
@@ -150,14 +176,19 @@ export default function Home() {
           Rose Portal Advocacia
           {ver && <small style={{ opacity: 0.6, marginLeft: 8 }}>v{ver}</small>}
         </span>
-        {me && (
-          <span>
-            {me.email}{" "}
-            <button className="secondary" onClick={sair} style={{ padding: "4px 10px" }}>
-              Sair
-            </button>
-          </span>
-        )}
+        <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <Link className="link" href="/feedback">
+            Feedback
+          </Link>
+          {me && (
+            <>
+              {me.email}{" "}
+              <button className="secondary" onClick={sair} style={{ padding: "4px 10px" }}>
+                Sair
+              </button>
+            </>
+          )}
+        </span>
       </div>
 
       <h1>Calculadora Crefaz</h1>
@@ -209,7 +240,38 @@ export default function Home() {
             </div>
           )}
 
-          {error && !dedup && <div className="banner erro">{error}</div>}
+          {error && !dedup && (
+            <div className="banner erro">
+              <div>{error}</div>
+              <div className="row" style={{ marginTop: 10, alignItems: "center" }}>
+                {report === "sent" ? (
+                  <span style={{ fontSize: "0.85rem" }}>
+                    ✓ Erro reportado pra equipe. Obrigado!
+                  </span>
+                ) : (
+                  <>
+                    <button
+                      className="secondary"
+                      style={{ padding: "6px 12px" }}
+                      disabled={report === "sending"}
+                      onClick={() => reportarErro(error)}
+                    >
+                      {report === "sending" ? "Enviando…" : "📨 Reportar este erro pra equipe"}
+                    </button>
+                    {report === "failed" && (
+                      <span style={{ fontSize: "0.8rem", opacity: 0.8 }}>
+                        Não consegui enviar agora — você pode usar a página de{" "}
+                        <Link className="link" href="/feedback">
+                          Feedback
+                        </Link>
+                        .
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           <ProgressLog lines={lines} />
 

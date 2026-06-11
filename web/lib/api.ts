@@ -95,3 +95,54 @@ export async function startRun(nome: string, forcar: boolean): Promise<StartResp
 export function fullEventsUrl(eventsPath: string): string {
   return `${API_BASE}${eventsPath}`;
 }
+
+// ─── Feedback ──────────────────────────────────────────────────────────────
+
+export type FeedbackTipo = "feat" | "bug" | "erro_sistema" | "duvida";
+
+export interface FeedbackPayload {
+  tipo: FeedbackTipo;
+  mensagem?: string;
+  origem?: "manual" | "auto";
+  contexto?: Record<string, unknown>;
+}
+
+export type FeedbackResult =
+  | { kind: "ok"; id?: string }
+  | { kind: "not_authenticated" }
+  | { kind: "disabled" }
+  | { kind: "error"; message: string };
+
+export async function fetchFeedbackConfig(): Promise<{ enabled: boolean }> {
+  try {
+    const r = await fetch(`${API_BASE}/api/feedback/config`, { credentials: "include" });
+    if (!r.ok) return { enabled: false };
+    return (await r.json()) as { enabled: boolean };
+  } catch {
+    return { enabled: false };
+  }
+}
+
+export async function sendFeedback(payload: FeedbackPayload): Promise<FeedbackResult> {
+  // Contexto técnico básico, sempre anexado (não-PII).
+  const contexto = {
+    url: typeof window !== "undefined" ? window.location.href : "",
+    user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+    ...(payload.contexto ?? {}),
+  };
+  try {
+    const r = await fetch(`${API_BASE}/api/feedback`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, contexto }),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (r.status === 201 || (r.ok && body?.ok)) return { kind: "ok", id: body?.id };
+    if (r.status === 401) return { kind: "not_authenticated" };
+    if (r.status === 503) return { kind: "disabled" };
+    return { kind: "error", message: body?.error ?? `Erro ${r.status}.` };
+  } catch {
+    return { kind: "error", message: "Falha de conexão ao enviar o feedback." };
+  }
+}

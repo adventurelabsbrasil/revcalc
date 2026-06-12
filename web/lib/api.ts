@@ -24,9 +24,16 @@ export interface RunResult {
   arquivos_gerados: ArquivoGerado[];
 }
 
+export interface CalculoExistente {
+  pasta: string;
+  is_raiz: boolean;
+  nome_arquivo: string;
+  modified_time: string;
+}
+
 export type StartResponse =
   | { kind: "started"; data: RunStart }
-  | { kind: "needs_confirmation"; nome_arquivo: string; modified_time: string }
+  | { kind: "needs_confirmation"; existentes: CalculoExistente[] }
   | { kind: "not_authenticated" }
   | { kind: "error"; message: string; sugestoes?: string[]; paths?: string[] };
 
@@ -78,11 +85,18 @@ export async function startRun(nome: string, forcar: boolean): Promise<StartResp
   if (r.ok) return { kind: "started", data: body as RunStart };
   if (r.status === 401) return { kind: "not_authenticated" };
   if (r.status === 409 && body?.needs_confirmation) {
-    return {
-      kind: "needs_confirmation",
-      nome_arquivo: body.nome_arquivo,
-      modified_time: body.modified_time,
-    };
+    // v0.9.5: lista de pastas a sobrescrever. Fallback p/ shape antigo (1 item).
+    const existentes: CalculoExistente[] = Array.isArray(body.existentes)
+      ? body.existentes
+      : [
+          {
+            pasta: "",
+            is_raiz: true,
+            nome_arquivo: body.nome_arquivo,
+            modified_time: body.modified_time,
+          },
+        ];
+    return { kind: "needs_confirmation", existentes };
   }
   return {
     kind: "error",

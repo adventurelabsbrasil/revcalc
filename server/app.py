@@ -30,6 +30,7 @@ from calculadora_crefaz import __version__ as ENGINE_VERSION, drive
 from calculadora_crefaz.exceptions import (
     AuthError,
     CalculadoraError,
+    ContratoNaoEncontrado,
     PastaAmbigua,
     PastaNaoEncontrada,
 )
@@ -222,9 +223,11 @@ def create_app() -> FastAPI:
             _clear_session_cookie(resp)
             return resp
 
-        # Pré-check (localizar pasta + dedup) numa thread — chamadas Drive bloqueantes.
+        # Pré-check (localizar pasta + subpastas + dedup) numa thread — chamadas
+        # Drive bloqueantes. Varre raiz E subpastas (v0.9.5): um run processa
+        # várias pastas, e cada uma com cálculo prévio precisa de confirmação.
         try:
-            pre = await asyncio.to_thread(_precheck, sessao, nome, forcar)
+            existentes = await asyncio.to_thread(_precheck, sessao, nome, forcar)
         except PastaNaoEncontrada as e:
             return JSONResponse(
                 {"error": str(e), "sugestoes": e.sugestoes}, status_code=404
@@ -234,13 +237,15 @@ def create_app() -> FastAPI:
         except CalculadoraError as e:
             return JSONResponse({"error": str(e)}, status_code=400)
 
-        if pre is not None:
-            # Cálculo já existe e usuário não forçou → pede confirmação.
+        if existentes:
+            # Já há cálculo em uma ou mais pastas e usuário não forçou → confirma.
             return JSONResponse(
                 {
                     "needs_confirmation": True,
-                    "nome_arquivo": pre["nome_arquivo"],
-                    "modified_time": pre["modified_time"],
+                    "existentes": existentes,
+                    # Compat com front antigo (1ª pasta): mostra ao menos uma.
+                    "nome_arquivo": existentes[0]["nome_arquivo"],
+                    "modified_time": existentes[0]["modified_time"],
                 },
                 status_code=409,
             )
@@ -294,22 +299,40 @@ def create_app() -> FastAPI:
     return app
 
 
-def _precheck(sessao, nome: str, forcar: bool) -> Optional[dict]:
-    """Localiza a pasta e checa dedup. Retorna dict se há cálculo a confirmar, senão None.
+def _precheck(sessao, nome: str, forcar: bool) -> list[dict]:
+    """Localiza a pasta raiz + subpastas diretas e checa dedup em cada uma.
+
+    Retorna a lista de pastas que serão SOBRESCRITAS (têm contrato Crefaz E um
+    cálculo prévio) — cada item: {pasta, is_raiz, nome_arquivo, modified_time}.
+    Lista vazia = nada a confirmar (ou forcar=True). Espelha o que o run faz:
+    só conta como sobrescrita a pasta que de fato será processada (com contrato),
+    evitando alarme falso numa subpasta sem contrato (ex.: "Documentos"). v0.9.5.
 
     Levanta PastaNaoEncontrada/PastaAmbigua/CalculadoraError (mapeadas no endpoint).
     """
     service = sessao.drive_service()
-    pasta = drive.localizar_pasta_cliente(service, nome)
+    pasta_raiz = drive.localizar_pasta_cliente(service, nome)
     if forcar:
-        return None
-    existente = drive.buscar_calculo_existente(service, pasta.id)
-    if existente:
-        return {
-            "nome_arquivo": existente.name,
-            "modified_time": existente.modified_time or "data desconhecida",
-        }
-    return None
+        return []
+    subpastas = drive.listar_subpastas(service, pasta_raiz)
+    existentes: list[dict] = []
+    for pasta in [pasta_raiz, *subpastas]:
+        existente = drive.buscar_calculo_existente(service, pasta.id)
+        if not existente:
+            continue
+        try:
+            drive.localizar_contrato(service, pasta.id)
+        except ContratoNaoEncontrado:
+            continue  # sem contrato → run pula a pasta → não sobrescreve
+        existentes.append(
+            {
+                "pasta": pasta.nome_real,
+                "is_raiz": pasta is pasta_raiz,
+                "nome_arquivo": existente.name,
+                "modified_time": existente.modified_time or "data desconhecida",
+            }
+        )
+    return existentes
 
 
 # Instância p/ uvicorn: `uvicorn server.app:app`

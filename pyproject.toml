@@ -1,6 +1,6 @@
 [project]
 name = "calculadora-crefaz"
-version = "0.9.4"
+version = "0.9.5"
 description = "Calculadora de Ação Crefaz — Rose Portal Advocacia (MVP)"
 requires-python = ">=3.11"
 authors = [

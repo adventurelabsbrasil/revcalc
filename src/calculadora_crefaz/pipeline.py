@@ -32,7 +32,7 @@ from .config import (
     master_run_log_url,
     nome_xlsx_saida,
 )
-from .exceptions import BloqueioDedup, EntradaInvalida
+from .exceptions import BloqueioDedup, ContratoNaoEncontrado, EntradaInvalida
 from .log_writer import ArquivoGerado
 from .sheets_run_log import append_master_run_row, build_master_run_row
 from .planilha import DadosPlanilha, gerar_xlsx
@@ -79,6 +79,39 @@ def _count_arquivos_por_status(arquivos: list[ArquivoGerado]) -> tuple[int, int]
     return added, modified
 
 
+def _segmento_final(path: str) -> str:
+    return path.rstrip("/").split("/")[-1]
+
+
+def _agregar(resultados: list[ResultadoPipeline], pasta_raiz) -> ResultadoPipeline:
+    """Consolida os resultados (raiz + subpastas) num único ResultadoPipeline.
+
+    Os arquivos das subpastas levam o prefixo «<subpasta>/» pra ficar claro onde
+    cada um foi gravado. URL/path apontam pra pasta raiz (botão "abrir pasta").
+    """
+    base = resultados[0]
+    arquivos: list[ArquivoGerado] = []
+    for r in resultados:
+        prefixo = "" if r.pasta_drive_path == pasta_raiz.path else f"{_segmento_final(r.pasta_drive_path)}/"
+        arquivos.extend(ArquivoGerado(prefixo + a.nome, a.status) for a in r.arquivos_gerados)
+    return ResultadoPipeline(
+        pasta_drive_path=pasta_raiz.path,
+        pasta_drive_url=drive.url_pasta(pasta_raiz.id),
+        xlsx_file_id=base.xlsx_file_id,
+        log_file_id="",
+        bacen_file_id=base.bacen_file_id,
+        arquivos_gerados=arquivos,
+        master_run_log_url=base.master_run_log_url,
+        master_run_log_row_appended=any(r.master_run_log_row_appended for r in resultados),
+        executor_email=base.executor_email,
+        duration_sec=sum(r.duration_sec for r in resultados),
+        files_before=base.files_before,
+        files_after=base.files_after,
+        files_added=sum(r.files_added for r in resultados),
+        files_modified=sum(r.files_modified for r in resultados),
+    )
+
+
 def executar(
     nome_cliente: str,
     sessao: SessaoAutenticada,
@@ -90,27 +123,23 @@ def executar(
     confirmar_dedup: ConfirmDedupCallback = lambda _: False,
     hoje: Optional[date] = None,
 ) -> ResultadoPipeline:
+    """Orquestra o run: processa a pasta RAIZ + cada SUBPASTA DIRETA com contrato.
+
+    v0.9.4: alguns clientes têm o contrato ativo na raiz e contratos quitados em
+    subpastas (ex.: VLADIMIR). Processa cada pasta com contrato Crefaz, gravando a
+    saída na respectiva pasta; pastas sem contrato são puladas silenciosamente.
+    """
     nome_cliente = _validar_nome(nome_cliente)
     hoje = hoje or date.today()
     service = sessao.drive_service()
-    t0 = time.perf_counter()
-    execution_lines: list[str] = []
 
     def emit(msg: str) -> None:
-        execution_lines.append(msg)
         status(msg)
 
     emit("=== Planned steps ===")
     for step in (
-        "Locate client folder on Drive",
-        "Check for existing calculation (dedup)",
-        "Locate and parse Crefaz contract PDF",
-        "Compute paid installments",
-        "Ensure BACEN PDF (client folder or central repo)",
-        "Extract BACEN rate",
-        "Generate and upload filled XLSX",
-        "Generate print PDF + imag.01 (contract Item II)",
-        "Append one row to the shared master Google Sheet (team run log)",
+        "Locate client folder on Drive (+ direct subfolders)",
+        "For each folder with a Crefaz contract: dedup, parse, BACEN, XLSX, captures, run log",
     ):
         emit(f"  • {step}")
     emit("")
@@ -118,9 +147,62 @@ def executar(
     emit(f"Executed by: {sessao.email}")
 
     emit("Locating client folder...")
-    pasta = drive.localizar_pasta_cliente(service, nome_cliente)
+    pasta_raiz = drive.localizar_pasta_cliente(service, nome_cliente)
+    emit(f"Folder found: {pasta_raiz.path}")
+    subpastas = drive.listar_subpastas(service, pasta_raiz)
+    pastas = [pasta_raiz, *subpastas]
+    if subpastas:
+        emit(f"Direct subfolders: {len(subpastas)} — each with a Crefaz contract will be processed too.")
+
+    resultados: list[ResultadoPipeline] = []
+    for pasta in pastas:
+        is_raiz = pasta is pasta_raiz
+        if not is_raiz:
+            emit("")
+            emit(f"=== Subfolder: {pasta.nome_real} ===")
+        try:
+            resultados.append(
+                _processar_pasta(
+                    service,
+                    sessao,
+                    pasta,
+                    forcar_contrato_nome=forcar_contrato_nome if is_raiz else None,
+                    forcar_sobrescrita=forcar_sobrescrita,
+                    emit=emit,
+                    aviso=aviso,
+                    confirmar_dedup=confirmar_dedup,
+                    hoje=hoje,
+                )
+            )
+        except ContratoNaoEncontrado:
+            emit(f"[skipped] {pasta.nome_real} — no Crefaz contract in this folder.")
+
+    if not resultados:
+        raise ContratoNaoEncontrado(
+            "Nenhum contrato Crefaz encontrado na pasta da cliente nem nas subpastas diretas."
+        )
+
+    emit("")
+    emit(f"All done — {len(resultados)} folder(s) processed.")
+    return _agregar(resultados, pasta_raiz)
+
+
+def _processar_pasta(
+    service,
+    sessao: SessaoAutenticada,
+    pasta,
+    *,
+    forcar_contrato_nome: Optional[str],
+    forcar_sobrescrita: bool,
+    emit: StatusCallback,
+    aviso: StatusCallback,
+    confirmar_dedup: ConfirmDedupCallback,
+    hoje: date,
+) -> ResultadoPipeline:
+    """Processa UMA pasta (raiz ou subpasta). Lança ContratoNaoEncontrado se não
+    houver contrato Crefaz (o orquestrador pula a pasta)."""
+    t0 = time.perf_counter()
     files_before = drive.contar_arquivos_na_pasta(service, pasta.id)
-    emit(f"Folder found: {pasta.path}")
     emit(f"Items in folder (before run): {files_before}")
 
     calculo_existente = drive.buscar_calculo_existente(service, pasta.id)

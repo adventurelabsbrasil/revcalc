@@ -163,6 +163,16 @@ def localizar_pasta_cliente(service, nome_buscado: str) -> PastaCliente:
     raise PastaNaoEncontrada(nome_buscado, sugestoes)
 
 
+def listar_subpastas(service, pasta: PastaCliente) -> list[PastaCliente]:
+    """Subpastas DIRETAS (1 nível) da pasta da cliente — cada uma candidata a um
+    contrato próprio (ex.: VLADIMIR: ativo na raiz + quitados em subpastas). v0.9.4."""
+    filhos = _listar_filhos(service, pasta.id, MIME_FOLDER)
+    return [
+        PastaCliente(id=f["id"], nome_real=f["name"], path=f"{pasta.path}/{f['name']}")
+        for f in filhos
+    ]
+
+
 # ─── Identificação de arquivos ──────────────────────────────────────────────
 
 

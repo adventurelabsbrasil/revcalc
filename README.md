@@ -1,6 +1,6 @@
 # Calculadora de Ação Crefaz
 
-**Versão atual:** `v0.9.3` · **Cliente:** Rose Portal Advocacia  
+**Versão atual:** `v0.9.4` · **Cliente:** Rose Portal Advocacia  
 
 Automatiza o cálculo de revisão de contratos **Crefaz**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica.
 
@@ -31,6 +31,10 @@ O app **detecta automaticamente** se o contrato é **quitado** (pago integralmen
 | Saída | `Calculo.xlsx` / `Calculo.pdf` | `Calculo quitado.xlsx` / `Calculo quitado.pdf` |
 
 O template quitado é **input-driven** (gerado de uma planilha hand-filled da Rose via [`scripts/limpa_template_quitado.py`](scripts/limpa_template_quitado.py), espelhando o padrão guardado da aba ativa): a lista de parcelas usa fórmulas `IF(idx>$I$qtd,"",…)` + datas `EDATE($D$1ºvenc, k)` até a capacidade de cada aba; a **matemática de recálculo** (bloco PMT, colunas AP/BL) é preservada intacta. **TAC** entra só em *DADOS DO CONTRATO*, não em *VALORES RECALCULADOS* (o recálculo já expurga a TAC do valor financiado).
+
+### 🗂️ Subpastas (v0.9.4)
+
+Quando a cliente tem o contrato ativo na **pasta raiz** e contratos quitados em **subpastas** (1 nível), o app processa **todas** numa só execução: a raiz + cada subpasta direta que contenha um contrato Crefaz, gravando a saída (`Calculo[.quitado].xlsx`/`.pdf` + imagens) na respectiva pasta. Subpastas sem contrato são **puladas silenciosamente**. O status mostra cada pasta processada; o resultado lista os arquivos com prefixo `«subpasta/»`.
 
 ### 📨 Feedback do usuário (v0.8.0)
 

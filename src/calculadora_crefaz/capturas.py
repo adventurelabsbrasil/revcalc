@@ -482,6 +482,36 @@ def gerar_capturas_regionais(
 # ─── Capturas de páginas de PDFs ────────────────────────────────────────────
 
 
+def _escolher_y_fim(line_rows, y_inicio: float, fim_incl_pattern, fim_pattern):
+    """Decide a coord vertical (pdfplumber) onde o recorte termina.
+
+    `line_rows`: lista de (bucket, texto_linha, tops, bottoms) já ordenada por top.
+    Precedência (v0.9.6):
+      1. fim INCLUSIVO — 1ª linha ABAIXO do início que casa `fim_incl_pattern`;
+         corta logo ABAIXO dela (max(bottoms)+4) → a linha-âncora ENTRA no recorte.
+      2. fim EXCLUSIVO (fallback) — 1ª linha abaixo do início que casa `fim_pattern`;
+         corta ACIMA dela (min(tops)-4) → o marcador da seção seguinte fica de fora.
+    Linhas acima/na altura do início são ignoradas. Retorna y_fim ou None.
+    """
+    if fim_incl_pattern:
+        for _bk, line_text, tops, bottoms in line_rows:
+            if not fim_incl_pattern.search(line_text):
+                continue
+            if tops and max(tops) <= y_inicio:
+                continue
+            if bottoms:
+                return max(y_inicio + 10.0, max(bottoms) + 4.0)
+    if fim_pattern:
+        for _bk, line_text, tops, bottoms in line_rows:
+            if not fim_pattern.search(line_text):
+                continue
+            if tops and max(tops) <= y_inicio:
+                continue
+            if tops:
+                return max(y_inicio + 10.0, min(tops) - 4.0)
+    return None
+
+
 def capturar_pagina_pdf(
     pdf_bytes: bytes,
     marcador_regex: str,
@@ -489,6 +519,7 @@ def capturar_pagina_pdf(
     *,
     dpi: int = 150,
     marcador_fim_regex: str | None = None,
+    marcador_fim_inclusivo_regex: str | None = None,
     altura_fallback_ratio: float = 0.50,
 ) -> CapturaPng | None:
     """Captura como PNG a primeira página do PDF que contém o marcador.
@@ -525,6 +556,11 @@ def capturar_pagina_pdf(
     y_inicio_plumb: float | None = None
     y_fim_plumb: float | None = None
     fim_pattern = re.compile(marcador_fim_regex, re.IGNORECASE) if marcador_fim_regex else None
+    fim_incl_pattern = (
+        re.compile(marcador_fim_inclusivo_regex, re.IGNORECASE)
+        if marcador_fim_inclusivo_regex
+        else None
+    )
 
     def _words_agrupados_em_linhas(words: list[dict]) -> list[tuple[float, str, list[float], list[float]]]:
         """Agrupa extract_words por faixa de top (~2pt); cada tupla = (bucket, texto_linha, tops, bottoms)."""
@@ -561,19 +597,12 @@ def capturar_pagina_pdf(
                     break
             if y_inicio_plumb is None:
                 y_inicio_plumb = 0.0
-            if fim_pattern:
-                for _bk, line_text, tops, bottoms in line_rows:
-                    if not fim_pattern.search(line_text):
-                        continue
-                    if y_inicio_plumb is not None and tops and max(tops) <= y_inicio_plumb:
-                        continue
-                    if tops:
-                        # v0.7.0: corta ACIMA do marcador de fim (ex.: "III. CUSTO
-                        # EFETIVO TOTAL") — captura só a seção pedida (II), sem vazar
-                        # o cabeçalho/tabela da seção seguinte. Antes usava
-                        # max(bottoms)+12 e incluía a linha do III.
-                        y_fim_plumb = max(y_inicio_plumb + 10.0, min(tops) - 4.0)
-                        break
+            # Fim do recorte: âncora INCLUSIVA na última linha do bloco ("C.E.T.
+            # TAXA ANUAL"), com fallback EXCLUSIVO na seção seguinte. Ver
+            # _escolher_y_fim — robusto às variações de layout ativo/quitado.
+            y_fim_plumb = _escolher_y_fim(
+                line_rows, y_inicio_plumb, fim_incl_pattern, fim_pattern
+            )
             break
 
     if pagina_alvo is None:

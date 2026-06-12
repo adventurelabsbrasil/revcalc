@@ -1,6 +1,6 @@
 # Calculadora de Ação Crefaz
 
-**Versão atual:** `v0.9.5` · **Cliente:** Rose Portal Advocacia  
+**Versão atual:** `v0.9.6` · **Cliente:** Rose Portal Advocacia  
 
 Automatiza o cálculo de revisão de contratos **Crefaz**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica.
 
@@ -35,6 +35,10 @@ O template quitado é **input-driven** (gerado de uma planilha hand-filled da Ro
 ### 🗂️ Subpastas (v0.9.4)
 
 Quando a cliente tem o contrato ativo na **pasta raiz** e contratos quitados em **subpastas** (1 nível), o app processa **todas** numa só execução: a raiz + cada subpasta direta que contenha um contrato Crefaz, gravando a saída (`Calculo[.quitado].xlsx`/`.pdf` + imagens) na respectiva pasta. Subpastas sem contrato são **puladas silenciosamente**. O status mostra cada pasta processada; o resultado lista os arquivos com prefixo `«subpasta/»`.
+
+### 🖼️ imag.01 robusta a layout ativo×quitado (v0.9.6)
+
+O recorte da **imag.01** (bloco "EMPRÉSTIMO CONCEDIDO" do contrato) agora ancora o fim na **última linha do próprio bloco** — `C.E.T. TAXA ANUAL: …%` (corte **inclusivo**, logo abaixo dela) — em vez de depender do cabeçalho da seção seguinte, que **varia entre layouts**: no contrato **ativo** a seção seguinte é `III. CUSTO EFETIVO TOTAL` (o recorte varava pra dentro dela); no **quitado**, `CUSTO EFETIVO TOTAL` aparece como cabeçalho de coluna *dentro* do bloco e a seção seguinte é `IV. DA LIBERAÇÃO DO CRÉDITO`. A âncora `C.E.T. TAXA ANUAL` existe nos dois → fecha o bloco certo em ambos.
 
 ### ⚠️ Confirmação antes de sobrescrever (v0.9.5)
 

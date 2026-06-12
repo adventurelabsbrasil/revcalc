@@ -291,8 +291,15 @@ def regiao_img02_para_aba(aba: str) -> str:
 # Robusto a "II." ou "III." (o nº da seção varia entre layouts de contrato Crefaz).
 # Fim = início da seção seguinte "DA LIBERAÇÃO DO CRÉDITO" (ancorado no texto, sem
 # depender do nº), o que inclui as linhas C.E.T. MENSAL/ANUAL no recorte.
+# imag.01: bloco "EMPRÉSTIMO CONCEDIDO" do contrato, do cabeçalho até a linha
+# "C.E.T. TAXA ANUAL: …%" (última do bloco). v0.9.6: usa fim INCLUSIVO ancorado
+# nessa linha — robusto às duas variações de layout (ATIVO: a seção seguinte é
+# "III. CUSTO EFETIVO TOTAL", logo abaixo do bloco; QUITADO: "CUSTO EFETIVO
+# TOTAL" é cabeçalho de coluna DENTRO do bloco, e a seção seguinte é "IV. DA
+# LIBERAÇÃO DO CRÉDITO"). marcador_fim_regex permanece como fallback exclusivo.
 CAPTURA_IMG01_CONTRATO = {
     "marcador_regex": r"(?:II|III)\.?\s*EMPR[ÉE]STIMO\s+CONCEDIDO",
+    "marcador_fim_inclusivo_regex": r"C\.?\s*E\.?\s*T\.?\s+TAXA\s+ANUAL",
     "marcador_fim_regex": r"DA\s+LIBERA[ÇC][ÃA]O\s+DO\s+CR[ÉE]DITO",
     "altura_fallback_ratio": 0.45,
 }

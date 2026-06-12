@@ -45,41 +45,25 @@ def _abs(coord: str) -> str:
 #   qtd/pp/pv : células de qtd parcelas / parcelas pagas / 1º vencimento (âncoras)
 #   prest     : célula do valor da prestação ($I$..)
 #   ao_first  : célula do valor da parcela recalculada (1ª ref da coluna AO)
-# res_row = linha vazia do bloco-resumo onde injetamos "Valor da parcela
-#   recalculada = " (p/ a imag.02 resumo incluir o resultado sem a derivação PMT).
-# res_src = célula que já guarda a parcela recalculada (=AH<n> via AP16/AP17).
-# fin_row = linha "Valor financiado ajustado" (fonte do estilo/formato do valor).
+#   exp_row   : linha visual do expoente "n" da fórmula PMT (U/AV) — fix do ##.
 ABAS = {
-    "PRICE 24X": dict(off=0, data0=132, cap=24, qtd="I15", pp="BL8", pv="D5", prest="I16", ao_first="AH121", res_row=32, res_src="AP16", fin_row=29),
-    "PRICE 36x": dict(off=1, data0=133, cap=36, qtd="I16", pp="BL9", pv="D6", prest="I17", ao_first="AH122", res_row=33, res_src="AP17", fin_row=30),
-    "PRICE 48x": dict(off=1, data0=133, cap=48, qtd="I16", pp="BL9", pv="D6", prest="I17", ao_first="AH122", res_row=33, res_src="AP17", fin_row=30),
-    "PRICE 60x": dict(off=1, data0=133, cap=60, qtd="I16", pp="BL9", pv="D6", prest="I17", ao_first="AH122", res_row=33, res_src="AP17", fin_row=30),
+    "PRICE 24X": dict(off=0, data0=132, cap=24, qtd="I15", pp="BL8", pv="D5", prest="I16", ao_first="AH121", exp_row=41),
+    "PRICE 36x": dict(off=1, data0=133, cap=36, qtd="I16", pp="BL9", pv="D6", prest="I17", ao_first="AH122", exp_row=42),
+    "PRICE 48x": dict(off=1, data0=133, cap=48, qtd="I16", pp="BL9", pv="D6", prest="I17", ao_first="AH122", exp_row=42),
+    "PRICE 60x": dict(off=1, data0=133, cap=60, qtd="I16", pp="BL9", pv="D6", prest="I17", ao_first="AH122", exp_row=42),
 }
 
 
-def _injeta_resultado_resumo(ws, p: dict) -> None:
-    """Adiciona 'Valor da parcela recalculada = <=AP16/17>' no bloco-resumo da imag.02.
-
-    Espelha a linha "Taxa média" (label simples + valor mergeado AI:AR), com o
-    formato contábil do "Valor financiado ajustado" (mostra 103,07 sem ##).
+def _corrige_expoente_pmt(ws, p: dict) -> None:
+    """Fix do ## na fórmula PMT: mostra o expoente numérico (=$I$qtd) + alarga as
+    colunas estreitas U/V/AV/AW. Espelha planilha._corrigir_tabelas... do fluxo ativo.
     """
-    from copy import copy
-    rr, fin = p["res_row"], p["fin_row"]
-    taxa = fin + 1  # linha "Taxa média de juros ao mês" — label single-line + valor merged
-    # Label (single-line, transborda à direita como o da taxa)
-    lbl = ws[f"AD{rr}"]
-    lbl.value = "Valor da parcela recalculada = "
-    src_lbl = ws[f"AD{taxa}"]
-    lbl.font = copy(src_lbl.font)
-    lbl.alignment = copy(src_lbl.alignment)
-    # Valor: mesmo merge da linha da taxa (AI:AR) + formato contábil do financiado
-    ws.merge_cells(f"AI{rr}:AR{rr}")
-    val = ws[f"AI{rr}"]
-    val.value = f"={p['res_src']}"
-    src_val = ws[f"AI{fin}"]
-    val.font = copy(src_val.font)
-    val.alignment = copy(src_val.alignment)
-    val.number_format = src_val.number_format
+    er, qtd = p["exp_row"], _abs(p["qtd"])
+    ws[f"U{er}"] = f"={qtd}"
+    ws[f"AV{er}"] = f"={qtd}"
+    for letter in ("U", "V", "AV", "AW"):
+        cur = ws.column_dimensions[letter].width
+        ws.column_dimensions[letter].width = max(float(cur or 8), 10.0)
 
 
 def _reescreve_lista_parcelas(ws, p: dict) -> None:
@@ -123,8 +107,8 @@ def main(origem: str) -> None:
         ws = wb[aba]
         _limpa_inputs(ws, aba)
         _reescreve_lista_parcelas(ws, p)
-        _injeta_resultado_resumo(ws, p)
-        print(f"  [{aba}] lista de parcelas {p['data0']}..{p['data0']+p['cap']-1} guardada; inputs limpos; resultado no resumo (AD{p['res_row']})")
+        _corrige_expoente_pmt(ws, p)
+        print(f"  [{aba}] lista de parcelas {p['data0']}..{p['data0']+p['cap']-1} guardada; inputs limpos; expoente PMT corrigido (U{p['exp_row']}/AV{p['exp_row']})")
     wb.save(destino)
     print(f"OK → {destino}")
 

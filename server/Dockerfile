@@ -8,12 +8,22 @@
 FROM python:3.12-slim
 
 # LibreOffice (xlsx→pdf nas capturas) + fontes p/ PNG sem tofu. curl p/ healthcheck.
+# locales + geração de pt_BR.UTF-8: sem isso o LibreOffice renderiza datas/moeda
+# em locale US (R$ 1,275.37 / m-d-yyyy). Com o locale BR sai R$ 1.275,37 / dd/mm.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libreoffice-calc \
         fonts-dejavu \
         fonts-liberation \
         curl \
+        locales \
+    && sed -i '/^# *pt_BR.UTF-8 /s/^# *//' /etc/locale.gen \
+    && locale-gen pt_BR.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
+
+# Locale BR para todo o processo (LibreOffice headless herda daqui).
+ENV LANG=pt_BR.UTF-8 \
+    LC_ALL=pt_BR.UTF-8 \
+    LANGUAGE=pt_BR:pt
 
 WORKDIR /app
 

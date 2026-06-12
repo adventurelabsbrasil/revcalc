@@ -325,6 +325,7 @@ def _processar_pasta(
                 conf_c["marcador_regex"],
                 NOME_IMAG_01,
                 marcador_fim_regex=conf_c.get("marcador_fim_regex"),
+                marcador_fim_inclusivo_regex=conf_c.get("marcador_fim_inclusivo_regex"),
                 altura_fallback_ratio=conf_c.get("altura_fallback_ratio", 0.50),
             )
         except CapturasError as e:

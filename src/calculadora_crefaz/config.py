@@ -267,15 +267,19 @@ CELULAS_DADOS = {
 # Recorte "PARCELA COM TAXA MÉDIA E EXPURGO DE ABUSIVIDADES" (lado direito da planilha).
 # Bloco de altura fixa ancorado no título (AD25 na 24X/CÁLCULO; +1 linha nas abas
 # quitado longas 36x/48x/60x). v0.9.0: por aba, pois as quitado deslocam o layout.
-REGIAO_IMG02_XLSX = "AD25:AZ73"  # default (CÁLCULO / PRICE 24X)
+# v0.9.2: recorte só da TABELA-RESUMO do bloco (título + Valor financiado ajustado
+# + Taxa média + Qtd parcelas + Valor da parcela recalculada), SEM a derivação PMT
+# esparramada (que gerava ## e gaps). A linha "Valor da parcela recalculada" é
+# injetada no bloco-resumo (ver scripts/limpa_template_quitado.py / patch do ativo).
+REGIAO_IMG02_XLSX = "AD25:AZ32"  # default (CÁLCULO / PRICE 24X)
 REGIOES_CAPTURA_XLSX = {"img02": REGIAO_IMG02_XLSX}
 
 _REGIAO_IMG02_POR_ABA = {
-    "CÁLCULO": "AD25:AZ73",
-    "PRICE 24X": "AD25:AZ73",
-    "PRICE 36x": "AD26:AZ74",
-    "PRICE 48x": "AD26:AZ74",
-    "PRICE 60x": "AD26:AZ74",
+    "CÁLCULO": "AD25:AZ32",
+    "PRICE 24X": "AD25:AZ32",
+    "PRICE 36x": "AD26:AZ33",
+    "PRICE 48x": "AD26:AZ33",
+    "PRICE 60x": "AD26:AZ33",
 }
 
 

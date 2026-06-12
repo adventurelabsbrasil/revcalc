@@ -186,9 +186,9 @@ class TestGerarXlsxQuitado:
         assert ws["C132"].value == '=IF(ROW()-131>$I$15,"",ROW()-131)'
         assert ws["D155"].value == '=IF(ROW()-131>$I$15,"",EDATE($D$5,ROW()-132))'
 
-        # imag.02 resumo (v0.9.2): linha "Valor da parcela recalculada" injetada.
-        assert "recalculada" in (ws["AD32"].value or "")
-        assert ws["AI32"].value == "=AP16"
+        # Fix do ## na fórmula PMT (v0.9.3): expoente numérico no lugar do 'n'.
+        assert ws["U41"].value == "=$I$15"
+        assert ws["AV41"].value == "=$I$15"
 
     def test_36x_offset_de_celulas(self):
         """Quitado prazo 25–36 → aba PRICE 36x com offset de linha (+1)."""

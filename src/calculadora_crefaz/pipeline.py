@@ -19,8 +19,8 @@ from .capturas import (
     CapturasError,
     capturar_pagina_pdf,
     gerar_capturas,
-    gerar_capturas_regionais,
     nome_pdf,
+    recortar_bloco_pmt_pdf,
 )
 from .config import (
     CAPTURA_IMG01_CONTRATO,
@@ -31,7 +31,6 @@ from .config import (
     master_run_log_spreadsheet_id,
     master_run_log_url,
     nome_xlsx_saida,
-    regiao_img02_para_aba,
 )
 from .exceptions import BloqueioDedup, EntradaInvalida
 from .log_writer import ArquivoGerado
@@ -261,30 +260,26 @@ def executar(
             )
             emit("imag.01 saved (contract Item II).")
 
-        # imag.02.png — recorte "Parcela com Taxa Média e Expurgo de Abusividades"
-        # da planilha CÁLCULO. Reativado em v0.7.0 (removido em v0.6.9 por recorte
-        # inconsistente). Captura regional via print_area + trim de whitespace.
+        # imag.02.png — bloco INTEIRO "Parcela com Taxa Média e Expurgo de
+        # Abusividades" (título + valores + derivação da fórmula PMT, como prova).
+        # v0.9.3: recortado direto do PDF do Cálculo já renderizado (fiel à
+        # planilha), em vez de re-render regional (que distorcia e gerava ##).
         emit("Generating spreadsheet capture (imag.02)...")
         try:
-            regionais = gerar_capturas_regionais(
-                xlsx_bytes,
-                {"img02": regiao_img02_para_aba(aba)},
-                nome_aba=aba,
-                nomes_arquivo={"img02": NOME_IMAG_02},
-            )
+            png_r = recortar_bloco_pmt_pdf(cap.pdf_bytes, NOME_IMAG_02)
         except Exception as e:  # noqa: BLE001 — captura supplementar; nunca derruba o run
-            aviso(f"imag.02 (spreadsheet) failed: {e}")
-            regionais = []
-        if not regionais:
-            emit("[skipped] imag.02 — region capture returned nothing.")
-        for png_r in regionais:
+            aviso(f"imag.02 (PDF crop) failed: {e}")
+            png_r = None
+        if png_r is None:
+            emit("[skipped] imag.02 — PARCELA block not found in calculation PDF.")
+        else:
             _, sob_r = drive.subir_ou_sobrescrever(
                 service, pasta.id, png_r.nome_arquivo, png_r.bytes_, "image/png"
             )
             arquivos_capturas.append(
                 ArquivoGerado(png_r.nome_arquivo, "sobrescrito" if sob_r else "novo")
             )
-            emit("imag.02 saved (Parcela com Taxa Média).")
+            emit("imag.02 saved (Parcela com Taxa Média — bloco completo).")
 
         emit(f"Capture phase finished ({len(arquivos_capturas)} files).")
     except CapturasError as e:

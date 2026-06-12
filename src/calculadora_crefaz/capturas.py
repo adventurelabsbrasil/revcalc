@@ -231,6 +231,71 @@ def nome_pdf(quitado: bool = False) -> str:
     return "Calculo quitado.pdf" if quitado else "Calculo.pdf"
 
 
+def recortar_bloco_pmt_pdf(
+    pdf_bytes: bytes,
+    nome_arquivo: str,
+    *,
+    dpi: int = 200,
+) -> CapturaPng | None:
+    """Recorta o bloco INTEIRO "PARCELA COM TAXA MÉDIA E EXPURGO DE ABUSIVIDADES"
+    do PDF do Cálculo já renderizado — fiel à planilha (sem re-render distorcido).
+
+    v0.9.3: imag.02 = prova de como o cálculo foi feito (título + valores + a
+    derivação da fórmula PMT). Recorta direto do PDF (sugestão da Rose: "print do
+    PDF sai certinho"), evitando o `##`/gaps do re-render regional.
+
+    Âncoras (presentes em todas as abas e nos fluxos ativo/quitado):
+    - título: palavra "EXPURGO" (caixa-alta) → topo do bloco.
+    - left/right: a BORDA da caixa que contém o título (rect do pdfplumber).
+    - fim: topo do cabeçalho "PARCELAS RECALCULADAS" logo abaixo do bloco.
+
+    Returns CapturaPng, ou None se as âncoras não baterem (fallback — nunca derruba o run).
+    """
+    import io
+
+    try:
+        import pdfplumber
+    except ImportError as e:  # pragma: no cover
+        raise CapturasError(f"pdfplumber não instalado: {e}") from e
+
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        for page in pdf.pages:
+            words = page.extract_words()
+            titulos = [w for w in words if w["text"] == "EXPURGO"]
+            if not titulos:
+                continue
+            titulo = min(titulos, key=lambda w: w["top"])
+            # Caixa (rect) que contém o título → bordas left/right do bloco.
+            caixas = [
+                r for r in page.rects
+                if r["top"] <= titulo["top"] + 4
+                and r["bottom"] >= titulo["top"] - 14
+                and r["x0"] < titulo["x0"] < r["x1"]
+                and (r["x1"] - r["x0"]) > 150
+            ]
+            if not caixas:
+                continue
+            caixa = min(caixas, key=lambda r: abs(r["top"] - titulo["top"]))
+            # Fim do bloco = topo do cabeçalho "PARCELAS RECALCULADAS".
+            fins = [w for w in words if w["text"].upper() == "RECALCULADAS" and w["top"] > titulo["top"]]
+            if not fins:
+                continue
+            bbox = (
+                caixa["x0"] - 3,
+                titulo["top"] - 8,
+                caixa["x1"] + 3,
+                min(w["top"] for w in fins) - 3,
+            )
+            img = page.within_bbox(bbox).to_image(resolution=dpi)
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            png = buf.getvalue()
+            w_px, h_px = img.original.size
+            logger.info("imag.02 (bloco PMT) recortada do PDF: %dx%d, %d KB", w_px, h_px, len(png) // 1024)
+            return CapturaPng(nome_arquivo=nome_arquivo, bytes_=png, pagina=1, largura_px=w_px, altura_px=h_px)
+    return None
+
+
 # ─── Capturas regionais (XLSX por range) ────────────────────────────────────
 
 

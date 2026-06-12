@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ProgressLog, { LogLine } from "@/components/ProgressLog";
 import {
+  CalculoExistente,
   fetchMe,
   fetchVersion,
   fullEventsUrl,
@@ -30,9 +31,7 @@ export default function Home() {
   const [lines, setLines] = useState<LogLine[]>([]);
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [dedup, setDedup] = useState<{ nome_arquivo: string; modified_time: string } | null>(
-    null
-  );
+  const [dedup, setDedup] = useState<CalculoExistente[] | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [ver, setVer] = useState<string | null>(null);
   // Auto-reporte de erro do sistema: 'idle' | 'sending' | 'sent' | 'failed'
@@ -134,7 +133,7 @@ export default function Home() {
         break;
       case "needs_confirmation":
         setRunning(false);
-        setDedup({ nome_arquivo: res.nome_arquivo, modified_time: res.modified_time });
+        setDedup(res.existentes);
         break;
       case "not_authenticated":
         setRunning(false);
@@ -229,10 +228,38 @@ export default function Home() {
 
           {dedup && (
             <div className="banner erro">
-              Já existe um cálculo nessa pasta: <strong>{dedup.nome_arquivo}</strong>{" "}
-              (modificado em {dedup.modified_time}). Sobrescrever?
+              {dedup.length === 1 ? (
+                <>
+                  Já existe um cálculo
+                  {dedup[0].pasta ? (
+                    <>
+                      {" "}na pasta <strong>{dedup[0].is_raiz ? dedup[0].pasta : `${dedup[0].pasta} (subpasta)`}</strong>
+                    </>
+                  ) : (
+                    <> nessa pasta</>
+                  )}
+                  : <strong>{dedup[0].nome_arquivo}</strong> (modificado em{" "}
+                  {dedup[0].modified_time}). Sobrescrever?
+                </>
+              ) : (
+                <>
+                  Estas pastas já têm cálculo e serão <strong>substituídas</strong>:
+                  <ul className="arquivos">
+                    {dedup.map((d, i) => (
+                      <li key={i}>
+                        <strong>{d.is_raiz ? `${d.pasta || "pasta raiz"}` : `${d.pasta} (subpasta)`}</strong>
+                        {" — "}
+                        {d.nome_arquivo} <em>(modificado em {d.modified_time})</em>
+                      </li>
+                    ))}
+                  </ul>
+                  Sobrescrever todos?
+                </>
+              )}
               <div className="row" style={{ marginTop: 10 }}>
-                <button onClick={() => calcular(true)}>Sobrescrever</button>
+                <button onClick={() => calcular(true)}>
+                  {dedup.length === 1 ? "Sobrescrever" : "Sobrescrever todos"}
+                </button>
                 <button className="secondary" onClick={() => setDedup(null)}>
                   Cancelar
                 </button>

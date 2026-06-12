@@ -6,7 +6,12 @@ from datetime import date
 
 import pytest
 
-from calculadora_crefaz.calculadora import decidir_aba, meses_entre, parcelas_pagas
+from calculadora_crefaz.calculadora import (
+    decidir_aba,
+    is_quitado,
+    meses_entre,
+    parcelas_pagas,
+)
 from calculadora_crefaz.exceptions import PrazoForaDoTemplate
 
 
@@ -139,3 +144,51 @@ class TestDecidirAba:
     def test_prazo_negativo_lanca(self):
         with pytest.raises(PrazoForaDoTemplate):
             decidir_aba(-1)
+
+
+# ─── is_quitado (detecção v0.9.0) ────────────────────────────────────────────
+
+
+class TestIsQuitado:
+    def test_todas_pagas_quitado(self):
+        assert is_quitado(15, 15) is True
+
+    def test_parcelas_a_vencer_ativo(self):
+        assert is_quitado(10, 15) is False
+
+    def test_nenhuma_paga_ativo(self):
+        assert is_quitado(0, 24) is False
+
+    def test_cap_excedido_ainda_quitado(self):
+        # parcelas_pagas é limitado a prazo na origem; >= mantém quitado.
+        assert is_quitado(24, 24) is True
+
+
+# ─── decidir_aba(quitado=True) ───────────────────────────────────────────────
+
+
+class TestDecidirAbaQuitado:
+    def test_24x(self):
+        assert decidir_aba(1, quitado=True) == "PRICE 24X"
+        assert decidir_aba(24, quitado=True) == "PRICE 24X"
+
+    def test_36x(self):
+        assert decidir_aba(25, quitado=True) == "PRICE 36x"
+        assert decidir_aba(36, quitado=True) == "PRICE 36x"
+
+    def test_48x(self):
+        assert decidir_aba(37, quitado=True) == "PRICE 48x"
+        assert decidir_aba(48, quitado=True) == "PRICE 48x"
+
+    def test_60x(self):
+        assert decidir_aba(49, quitado=True) == "PRICE 60x"
+        assert decidir_aba(60, quitado=True) == "PRICE 60x"
+
+    def test_prazo_61_lanca(self):
+        with pytest.raises(PrazoForaDoTemplate) as exc:
+            decidir_aba(61, quitado=True)
+        assert exc.value.prazo == 61
+
+    def test_prazo_zero_lanca(self):
+        with pytest.raises(PrazoForaDoTemplate):
+            decidir_aba(0, quitado=True)

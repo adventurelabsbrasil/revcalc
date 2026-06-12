@@ -99,8 +99,14 @@ def test_e_bacen_pasta_cliente_copia_ignorada():
 
 
 def test_e_calculo_existente():
+    # Legado numerado
     assert _e_calculo_existente("10 Cálculo MARLI SUELI.xlsx")
     assert _e_calculo_existente("10 Calculo MARLI.xlsx")
+    # Nomes novos v0.9.0 (sem número)
+    assert _e_calculo_existente("Calculo.xlsx")
+    assert _e_calculo_existente("Cálculo.xlsx")
+    assert _e_calculo_existente("Calculo quitado.xlsx")
+    # Não-cálculos
     assert not _e_calculo_existente("10 contrato.xlsx")
     assert not _e_calculo_existente("calculo qualquer.xlsx")
 

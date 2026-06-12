@@ -1,6 +1,6 @@
 # Calculadora de Ação Crefaz
 
-**Versão atual:** `v0.8.0` · **Cliente:** Rose Portal Advocacia  
+**Versão atual:** `v0.9.0` · **Cliente:** Rose Portal Advocacia  
 
 Automatiza o cálculo de revisão de contratos **Crefaz**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica.
 
@@ -18,7 +18,19 @@ O **engine de cálculo** (`src/calculadora_crefaz/`) é o mesmo do desktop, roda
 
 **Deploy:** backend `docker compose up -d --build` no xeon (`.env` renderizado do Infisical) + túnel `cloudflared` (systemd `--user`); front `vercel --prod` (rootDir `web`, env `NEXT_PUBLIC_API_BASE`). Detalhes em [`server/README.md`](server/README.md) e [`web/README.md`](web/README.md).
 
-**Saída na pasta da cliente:** `10 Cálculo NOME.xlsx` · `13 Print CÁLCULO.pdf` · `imag.01.png` (Item II do contrato, recorte só da seção) · `imag.02.png` (bloco "Parcela com Taxa Média e Expurgo").
+**Saída na pasta da cliente** (v0.9.0, sem numeração): `Calculo.xlsx` · `Calculo.pdf` · `imag.01.png` (Item II do contrato, recorte só da seção) · `imag.02.png` (bloco "Parcela com Taxa Média e Expurgo"). No fluxo **quitado** os dois primeiros viram `Calculo quitado.xlsx` · `Calculo quitado.pdf`.
+
+### 🆕 Contratos quitados vs ativos (v0.9.0)
+
+O app **detecta automaticamente** se o contrato é **quitado** (pago integralmente) ou **ativo**, pelos dados: se **todas as parcelas já venceram** (`parcelas_pagas >= prazo`, ou seja **0 a vencer**), trata como **quitado**.
+
+| | Ativo | Quitado |
+|---|---|---|
+| Template | `templates/Calculo.xlsx` (aba `CÁLCULO`, modelo DADOS) | `templates/Calculo.quitado.xlsx` (abas `PRICE 24X/36x/48x/60x`, preenchimento direto) |
+| Prazo suportado | 1–24 | 1–60 (cálculo retrospectivo: saldo zerado + montante cobrado a mais) |
+| Saída | `Calculo.xlsx` / `Calculo.pdf` | `Calculo quitado.xlsx` / `Calculo quitado.pdf` |
+
+O template quitado é **input-driven** (gerado de uma planilha hand-filled da Rose via [`scripts/limpa_template_quitado.py`](scripts/limpa_template_quitado.py), espelhando o padrão guardado da aba ativa): a lista de parcelas usa fórmulas `IF(idx>$I$qtd,"",…)` + datas `EDATE($D$1ºvenc, k)` até a capacidade de cada aba; a **matemática de recálculo** (bloco PMT, colunas AP/BL) é preservada intacta. **TAC** entra só em *DADOS DO CONTRATO*, não em *VALORES RECALCULADOS* (o recálculo já expurga a TAC do valor financiado).
 
 ### 📨 Feedback do usuário (v0.8.0)
 

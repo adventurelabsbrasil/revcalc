@@ -216,9 +216,12 @@ def gerar_capturas(
     return CapturasGeradas(pdf_bytes=pdf_bytes, pngs=pngs)
 
 
-def nome_pdf(nome_aba: str = "CÁLCULO") -> str:
-    """Nome do PDF unificado salvo na pasta da cliente."""
-    return f"13 Print {nome_aba}.pdf"
+def nome_pdf(quitado: bool = False) -> str:
+    """Nome do PDF unificado salvo na pasta da cliente.
+
+    v0.9.0: nome sem numeração ("salvar como Calculo"); variante quitado mantém o sufixo.
+    """
+    return "Calculo quitado.pdf" if quitado else "Calculo.pdf"
 
 
 # ─── Capturas regionais (XLSX por range) ────────────────────────────────────
@@ -301,7 +304,10 @@ def gerar_capturas_regionais(
                 f"Aba {nome_aba!r} não encontrada no XLSX. Abas: {wb.sheetnames}"
             )
         ws = wb[nome_aba]
-        ws.print_area = f"{nome_aba}!{range_xlsx}"
+        # print_area é por-aba: o range basta (sem prefixo de aba). O prefixo
+        # com nome contendo espaço — ex.: "PRICE 24X!AD25:AZ73" — quebra no
+        # openpyxl ≥3.1.5 por falta de aspas. v0.9.0.
+        ws.print_area = range_xlsx
         # Orientação adaptativa: se a região é mais ALTA que LARGA, usa portrait;
         # senão landscape. Evita que blocos quadrados/altos sejam comprimidos demais.
         col_min, row_min, col_max, row_max = range_boundaries(range_xlsx)

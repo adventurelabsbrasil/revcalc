@@ -152,3 +152,67 @@ class TestGerarXlsx:
         assert ws["AP14"].value == "=SUM(AP7:AZ13)"
         assert ws["AP17"].value == "=I15*AP16"
         assert ws["BL10"].value == "=BL8*BL9"
+
+
+# ─── Fluxo QUITADO (v0.9.0) — template Calculo.quitado.xlsx ───────────────────
+
+
+class TestGerarXlsxQuitado:
+    def test_24x_inputs_e_aba_unica(self):
+        """Quitado prazo ≤24 → aba PRICE 24X, preenchimento legacy direto nas células I."""
+        dados = DadosPlanilha(
+            contrato=_contrato_marli(),  # prazo 18
+            taxa_bacen=0.0647,
+            parcelas_pagas=18,  # todas pagas
+            data_calculo=date(2026, 4, 28),
+        )
+        wb = _carrega_xlsx(gerar_xlsx(dados, quitado=True))
+
+        # Só a aba selecionada sobra (sem DADOS — template quitado é legacy).
+        assert wb.sheetnames == ["PRICE 24X"]
+        ws = wb["PRICE 24X"]
+
+        # Inputs escritos direto (CELULAS_CALCULO, offset 0).
+        assert ws["I7"].value == 3500.00          # principal
+        assert ws["I9"].value == 0.00             # TAC/tarifas
+        assert ws["I13"].value == 104.99          # IOF
+        assert ws["I15"].value == 18              # qtd parcelas
+        assert ws["I16"].value == 585.53          # prestação
+        assert ws["I17"].value == pytest.approx(0.1449)
+        assert ws["BL8"].value == 18              # parcelas pagas
+        assert ws["D5"].value.date() == date(2026, 2, 2)  # 1º vencimento (âncora EDATE)
+
+        # Lista de parcelas guardada + datas via EDATE até a capacidade (linha 155).
+        assert ws["C132"].value == '=IF(ROW()-131>$I$15,"",ROW()-131)'
+        assert ws["D155"].value == '=IF(ROW()-131>$I$15,"",EDATE($D$5,ROW()-132))'
+
+    def test_36x_offset_de_celulas(self):
+        """Quitado prazo 25–36 → aba PRICE 36x com offset de linha (+1)."""
+        contrato = _contrato_marli()
+        contrato.prazo = 30
+        dados = DadosPlanilha(
+            contrato=contrato,
+            taxa_bacen=0.0647,
+            parcelas_pagas=30,
+            data_calculo=date(2026, 4, 28),
+        )
+        wb = _carrega_xlsx(gerar_xlsx(dados, quitado=True))
+        assert wb.sheetnames == ["PRICE 36x"]
+        ws = wb["PRICE 36x"]
+        # Offset +1: qtd em I16, prestação I17, parcelas pagas BL9, 1º venc D6.
+        assert ws["I8"].value == 3500.00   # principal (I7→I8)
+        assert ws["I16"].value == 30       # qtd parcelas (I15→I16)
+        assert ws["BL9"].value == 30       # parcelas pagas (BL8→BL9)
+        assert ws["D6"].value.date() == date(2026, 2, 2)  # 1º venc (D5→D6)
+
+    def test_prazo_acima_de_60_lanca(self):
+        contrato = _contrato_marli()
+        contrato.prazo = 61
+        dados = DadosPlanilha(
+            contrato=contrato,
+            taxa_bacen=0.0647,
+            parcelas_pagas=61,
+            data_calculo=date(2026, 4, 28),
+        )
+        with pytest.raises(PrazoForaDoTemplate):
+            gerar_xlsx(dados, quitado=True)

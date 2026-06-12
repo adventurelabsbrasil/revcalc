@@ -74,8 +74,12 @@ def nome_arquivo_bacen(mes: int, ano: int) -> str:
 # Cópias do Drive (ex: "Cópia de XYZ.pdf") — ignorar
 REGEX_COPIA = re.compile(r"^c[óo]pia\s+de\s+", re.IGNORECASE)
 
-# Cálculo já existente (para dedup)
-REGEX_CALCULO_EXISTENTE = re.compile(r"^10\s+c[áa]lculo.*\.xlsx$", re.IGNORECASE)
+# Cálculo já existente (para dedup). Casa o nome legado ("10 Cálculo NOME.xlsx")
+# e os nomes novos v0.9.0 exatos ("Calculo.xlsx" / "Calculo quitado.xlsx"), com/sem
+# acento. NÃO casa "calculo qualquer.xlsx" (evita falso-positivo de dedup).
+REGEX_CALCULO_EXISTENTE = re.compile(
+    r"^(10\s+c[áa]lculo.*|c[áa]lculo( quitado)?)\.xlsx$", re.IGNORECASE
+)
 
 # ─── Parser do Contrato Crefaz ──────────────────────────────────────────────
 
@@ -134,27 +138,50 @@ REGEX_LINHA_BACEN = re.compile(
 
 # ─── Template / Planilha ────────────────────────────────────────────────────
 
-def _resolver_template_path() -> Path:
-    """Resolve TEMPLATE_PATH em dev e no bundle do PyInstaller.
+def _resolver_template_dir() -> Path:
+    """Diretório `templates/` em dev e no bundle do PyInstaller.
 
     - Em dev (src/calculadora_crefaz/config.py): sobe 2 níveis até a raiz do projeto.
     - No bundle PyInstaller: usa sys._MEIPASS (diretório temporário extraído).
     """
     if hasattr(sys, "_MEIPASS"):
-        return Path(sys._MEIPASS) / "templates" / "Calculo.xlsx"
-    return Path(__file__).resolve().parents[2] / "templates" / "Calculo.xlsx"
+        return Path(sys._MEIPASS) / "templates"
+    return Path(__file__).resolve().parents[2] / "templates"
+
+
+def _resolver_template_path() -> Path:
+    return _resolver_template_dir() / "Calculo.xlsx"
 
 
 TEMPLATE_PATH = _resolver_template_path()
+# Template do fluxo QUITADO (contrato pago integralmente) — 4 abas PRICE 24/36/48/60.
+# Cálculo retrospectivo (saldo zerado + montante cobrado a mais). v0.9.0.
+TEMPLATE_QUITADO_PATH = _resolver_template_dir() / "Calculo.quitado.xlsx"
 
-# Crefaz só opera contratos de até 24 parcelas — uma única aba visual.
+# Fluxo ATIVO: Crefaz só opera contratos de até 24 parcelas — uma única aba visual.
 NOME_ABA_CALCULO = "CÁLCULO"
+
+# Fluxo QUITADO: abas por faixa de prazo (até 60 parcelas — contratos históricos).
+ABAS_QUITADO = ("PRICE 24X", "PRICE 36x", "PRICE 48x", "PRICE 60x")
 
 
 def aba_para_prazo(prazo: int) -> str:
     if 1 <= prazo <= 24:
         return NOME_ABA_CALCULO
     raise ValueError(f"Prazo {prazo} fora do template (1-24).")
+
+
+def aba_para_prazo_quitado(prazo: int) -> str:
+    """Mapeia prazo → aba do template quitado (1–24→24X, 25–36→36x, 37–48→48x, 49–60→60x)."""
+    if 1 <= prazo <= 24:
+        return "PRICE 24X"
+    if 25 <= prazo <= 36:
+        return "PRICE 36x"
+    if 37 <= prazo <= 48:
+        return "PRICE 48x"
+    if 49 <= prazo <= 60:
+        return "PRICE 60x"
+    raise ValueError(f"Prazo {prazo} fora do template quitado (1-60).")
 
 
 # Células de input na aba CÁLCULO (sem offset — só uma aba existe agora).
@@ -177,13 +204,35 @@ CELULAS_CALCULO = {
 # Alias retrocompatível com código antigo que importava CELULAS_PRICE_24X.
 CELULAS_PRICE_24X = CELULAS_CALCULO
 
+# Offset de linha das abas quitado em relação à 24X (layout idêntico, +1 linha).
+# 24X é alinhada à CÁLCULO (offset 0); 36x/48x/60x deslocam todas as linhas em +1.
+_OFFSET_LINHA_ABA_QUITADO = {"PRICE 24X": 0, "PRICE 36x": 1, "PRICE 48x": 1, "PRICE 60x": 1}
+
+_RE_COORD = re.compile(r"^([A-Z]+)(\d+)$")
+
+
+def _desloca_coord(coord: str, offset: int) -> str:
+    """Desloca a LINHA de uma coordenada A1 (ex.: 'I9' + 1 → 'I10'). Coluna intacta."""
+    m = _RE_COORD.match(coord)
+    if not m:
+        raise ValueError(f"Coordenada inválida: {coord!r}")
+    col, linha = m.group(1), int(m.group(2))
+    return f"{col}{linha + offset}"
+
 
 def celulas_para_aba(aba: str) -> dict[str, str]:
-    """Aceita 'CÁLCULO' (v0.6.0+) e 'PRICE 24X' (legacy preDADOS) — mesmo mapa."""
-    if aba in (NOME_ABA_CALCULO, "PRICE 24X"):
+    """Mapa de células de input por aba.
+
+    Aceita 'CÁLCULO' (ativo v0.6.0+) e as abas quitado 'PRICE 24X/36x/48x/60x'.
+    As abas quitado compartilham o layout da 24X com offset de linha (+1 nas longas).
+    """
+    if aba == NOME_ABA_CALCULO:
         return dict(CELULAS_CALCULO)
+    if aba in _OFFSET_LINHA_ABA_QUITADO:
+        offset = _OFFSET_LINHA_ABA_QUITADO[aba]
+        return {k: _desloca_coord(v, offset) for k, v in CELULAS_CALCULO.items()}
     raise ValueError(
-        f"Aba desconhecida: {aba!r}. Esperado: {NOME_ABA_CALCULO!r} ou 'PRICE 24X'."
+        f"Aba desconhecida: {aba!r}. Esperado: {NOME_ABA_CALCULO!r} ou {ABAS_QUITADO}."
     )
 
 
@@ -215,8 +264,24 @@ CELULAS_DADOS = {
 # img02 (recorte da região PMT na planilha) foi REMOVIDO em v0.6.9 — o recorte
 # estava inconsistente entre clientes. Constantes mantidas como código morto
 # para reativação futura quando o algoritmo for refeito (ROADMAP v0.7 → v0.8).
-REGIAO_IMG02_XLSX = "AD25:AZ73"
+# Recorte "PARCELA COM TAXA MÉDIA E EXPURGO DE ABUSIVIDADES" (lado direito da planilha).
+# Bloco de altura fixa ancorado no título (AD25 na 24X/CÁLCULO; +1 linha nas abas
+# quitado longas 36x/48x/60x). v0.9.0: por aba, pois as quitado deslocam o layout.
+REGIAO_IMG02_XLSX = "AD25:AZ73"  # default (CÁLCULO / PRICE 24X)
 REGIOES_CAPTURA_XLSX = {"img02": REGIAO_IMG02_XLSX}
+
+_REGIAO_IMG02_POR_ABA = {
+    "CÁLCULO": "AD25:AZ73",
+    "PRICE 24X": "AD25:AZ73",
+    "PRICE 36x": "AD26:AZ74",
+    "PRICE 48x": "AD26:AZ74",
+    "PRICE 60x": "AD26:AZ74",
+}
+
+
+def regiao_img02_para_aba(aba: str) -> str:
+    """Região do recorte imag.02 conforme a aba (offset de layout nas abas quitado)."""
+    return _REGIAO_IMG02_POR_ABA.get(aba, REGIAO_IMG02_XLSX)
 
 CAPTURA_IMG01_CONTRATO = {
     "marcador_regex": r"II\.?\s*EMPR[ÉE]STIMO\s+CONCEDIDO",
@@ -226,7 +291,16 @@ CAPTURA_IMG01_CONTRATO = {
 
 # ─── Saída ──────────────────────────────────────────────────────────────────
 
-NOME_XLSX_SAIDA = "10 Cálculo {nome}.xlsx"
+# v0.9.0: nome sem numeração/acento/nome do cliente ("salvar como Calculo").
+# Variante quitado mantém o sufixo (espelha a convenção manual da Rose).
+NOME_XLSX_SAIDA = "Calculo.xlsx"
+NOME_XLSX_SAIDA_QUITADO = "Calculo quitado.xlsx"
+
+
+def nome_xlsx_saida(quitado: bool = False) -> str:
+    return NOME_XLSX_SAIDA_QUITADO if quitado else NOME_XLSX_SAIDA
+
+
 NOME_BACEN_PASTA_CLIENTE = "11 Series Temporais.pdf"
 NOME_IMAG_01 = "imag.01.png"
 NOME_IMAG_02 = "imag.02.png"  # v0.7.0: recorte "Parcela c/ Taxa Média e Expurgo" da planilha
@@ -276,4 +350,5 @@ def master_run_log_url() -> str | None:
 
 TOLERANCIA_VALIDACAO_REAIS = 1.00
 PRAZO_MINIMO = 1
-PRAZO_MAXIMO = 24  # Crefaz não opera contratos com mais de 24 parcelas (v0.6.0)
+PRAZO_MAXIMO = 24  # ATIVO: Crefaz não opera contratos com mais de 24 parcelas (v0.6.0)
+PRAZO_MAXIMO_QUITADO = 60  # QUITADO: contratos históricos vão até 60 parcelas (v0.9.0)

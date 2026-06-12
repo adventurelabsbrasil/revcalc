@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from datetime import date
 
-from .config import PRAZO_MAXIMO, PRAZO_MINIMO, aba_para_prazo
+from .config import (
+    PRAZO_MAXIMO,
+    PRAZO_MAXIMO_QUITADO,
+    PRAZO_MINIMO,
+    aba_para_prazo,
+    aba_para_prazo_quitado,
+)
 from .exceptions import PrazoForaDoTemplate
 
 
@@ -41,12 +47,27 @@ def parcelas_pagas(
     return max(0, min(prazo, meses_entre(hoje, primeiro_vencimento)))
 
 
-def decidir_aba(prazo: int) -> str:
-    """Escolhe a aba do template a partir do prazo.
+def is_quitado(parcelas_pagas: int, prazo: int) -> bool:
+    """Contrato quitado = todas as parcelas já venceram (0 a vencer).
 
-    v0.6.0: Crefaz só opera contratos de 1 a 24 parcelas → uma única aba CÁLCULO.
-    Lança PrazoForaDoTemplate se o prazo cair fora de [PRAZO_MINIMO, PRAZO_MAXIMO].
+    v0.9.0: detecção automática pelos dados. `parcelas_pagas` é limitado a `prazo`
+    em :func:`parcelas_pagas`, então `>= prazo` ⇔ "parcelas a vencer == 0".
     """
+    return parcelas_pagas >= prazo
+
+
+def decidir_aba(prazo: int, quitado: bool = False) -> str:
+    """Escolhe a aba do template a partir do prazo (e do status quitado).
+
+    - ATIVO (v0.6.0): Crefaz opera 1–24 parcelas → aba única CÁLCULO.
+    - QUITADO (v0.9.0): contratos históricos até 60 → abas PRICE 24X/36x/48x/60x.
+
+    Lança PrazoForaDoTemplate se o prazo cair fora da faixa do fluxo escolhido.
+    """
+    if quitado:
+        if prazo < PRAZO_MINIMO or prazo > PRAZO_MAXIMO_QUITADO:
+            raise PrazoForaDoTemplate(prazo)
+        return aba_para_prazo_quitado(prazo)
     if prazo < PRAZO_MINIMO or prazo > PRAZO_MAXIMO:
         raise PrazoForaDoTemplate(prazo)
     return aba_para_prazo(prazo)

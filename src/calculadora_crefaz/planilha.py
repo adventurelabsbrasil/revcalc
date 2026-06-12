@@ -17,6 +17,7 @@ from .config import (
     NOME_ABA_CALCULO,
     NOME_ABA_DADOS,
     TEMPLATE_PATH,
+    TEMPLATE_QUITADO_PATH,
     celulas_para_aba,
 )
 from .parser_contrato import DadosContrato
@@ -156,20 +157,29 @@ def _preencher_aba_dados(ws, dados: DadosPlanilha) -> None:
     _set_date_cell(ws, c["data_calculo"], dados.data_calculo)
 
 
-def gerar_xlsx(dados: DadosPlanilha, template_path: Path | None = None) -> bytes:
+def gerar_xlsx(
+    dados: DadosPlanilha,
+    template_path: Path | None = None,
+    *,
+    quitado: bool = False,
+) -> bytes:
     """Gera o XLSX preenchido em memória, retornando os bytes.
 
-    - Carrega o template
-    - Decide a aba apropriada via `decidir_aba(prazo)`
+    - Carrega o template (ativo `Calculo.xlsx` ou quitado `Calculo.quitado.xlsx`)
+    - Decide a aba apropriada via `decidir_aba(prazo, quitado)`
     - Remove abas não usadas (mantém `DADOS` se existir — modelo dados + visual)
-    - Preenche: modo legacy (direto na PRICE) ou modo DADOS (só aba DADOS; PRICE com fórmulas)
+    - Preenche: modo legacy (direto na aba) ou modo DADOS (só aba DADOS; visual com fórmulas)
     - Força landscape na aba visual se necessário
     - Retorna bytes prontos para upload
+
+    No fluxo QUITADO o template não tem aba DADOS → cai no preenchimento legacy
+    (`_preencher_aba`), escrevendo direto nas células da aba PRICE selecionada.
     """
-    template_path = template_path or TEMPLATE_PATH
+    if template_path is None:
+        template_path = TEMPLATE_QUITADO_PATH if quitado else TEMPLATE_PATH
     wb = load_workbook(template_path)
 
-    aba = decidir_aba(dados.contrato.prazo)
+    aba = decidir_aba(dados.contrato.prazo, quitado)
     if aba not in wb.sheetnames:
         raise ValueError(
             f"Aba '{aba}' não encontrada no template. "

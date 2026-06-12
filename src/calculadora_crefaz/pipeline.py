@@ -12,7 +12,6 @@ import time
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Callable, Optional
-from unidecode import unidecode
 
 from . import __version__, calculadora, drive, parser_bacen, parser_contrato
 from .auth_core import SessaoAutenticada
@@ -28,11 +27,11 @@ from .config import (
     NOME_BACEN_PASTA_CLIENTE,
     NOME_IMAG_01,
     NOME_IMAG_02,
-    NOME_XLSX_SAIDA,
-    REGIAO_IMG02_XLSX,
     master_run_log_sheet_tab,
     master_run_log_spreadsheet_id,
     master_run_log_url,
+    nome_xlsx_saida,
+    regiao_img02_para_aba,
 )
 from .exceptions import BloqueioDedup, EntradaInvalida
 from .log_writer import ArquivoGerado
@@ -69,10 +68,6 @@ def _validar_nome(nome: str) -> str:
     if len(nome.split()) < 2:
         raise EntradaInvalida("Digite o nome completo (mínimo 2 palavras).")
     return nome
-
-
-def _nome_xlsx_saida(nome_emitente: str) -> str:
-    return NOME_XLSX_SAIDA.format(nome=unidecode(nome_emitente).upper())
 
 
 def _noop(_: str) -> None:
@@ -162,8 +157,12 @@ def executar(
         prazo=dados_contrato.prazo,
         hoje=hoje,
     )
-    aba = calculadora.decidir_aba(dados_contrato.prazo)
-    emit(f"Paid installments to date: {parcelas} | sheet: {aba}")
+    quitado = calculadora.is_quitado(parcelas, dados_contrato.prazo)
+    aba = calculadora.decidir_aba(dados_contrato.prazo, quitado)
+    emit(
+        f"Contract status: {'QUITADO (all installments due)' if quitado else 'ATIVO'} "
+        f"| paid installments to date: {parcelas} | sheet: {aba}"
+    )
 
     bacen_mes = dados_contrato.data_emissao.month
     bacen_ano = dados_contrato.data_emissao.year
@@ -204,9 +203,9 @@ def executar(
         parcelas_pagas=parcelas,
         data_calculo=hoje,
     )
-    xlsx_bytes = gerar_xlsx(dados_planilha)
+    xlsx_bytes = gerar_xlsx(dados_planilha, quitado=quitado)
 
-    nome_xlsx = _nome_xlsx_saida(dados_contrato.nome_emitente)
+    nome_xlsx = nome_xlsx_saida(quitado)
     emit(f"Uploading {nome_xlsx}...")
     xlsx_id, xlsx_sobrescrito = drive.subir_ou_sobrescrever(
         service,
@@ -226,7 +225,7 @@ def executar(
             incluir_png_pagina_inteira=False,
         )
 
-        pdf_nome = nome_pdf(aba)
+        pdf_nome = nome_pdf(quitado)
         emit(f"Uploading {pdf_nome}...")
         _, pdf_sobrescrito = drive.subir_ou_sobrescrever(
             service, pasta.id, pdf_nome, cap.pdf_bytes, "application/pdf"
@@ -269,7 +268,7 @@ def executar(
         try:
             regionais = gerar_capturas_regionais(
                 xlsx_bytes,
-                {"img02": REGIAO_IMG02_XLSX},
+                {"img02": regiao_img02_para_aba(aba)},
                 nome_aba=aba,
                 nomes_arquivo={"img02": NOME_IMAG_02},
             )

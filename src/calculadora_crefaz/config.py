@@ -283,10 +283,14 @@ def regiao_img02_para_aba(aba: str) -> str:
     """Região do recorte imag.02 conforme a aba (offset de layout nas abas quitado)."""
     return _REGIAO_IMG02_POR_ABA.get(aba, REGIAO_IMG02_XLSX)
 
+# imag.01 = bloco "EMPRÉSTIMO CONCEDIDO" inteiro (cabeçalho → C.E.T. TAXA ANUAL).
+# Robusto a "II." ou "III." (o nº da seção varia entre layouts de contrato Crefaz).
+# Fim = início da seção seguinte "DA LIBERAÇÃO DO CRÉDITO" (ancorado no texto, sem
+# depender do nº), o que inclui as linhas C.E.T. MENSAL/ANUAL no recorte.
 CAPTURA_IMG01_CONTRATO = {
-    "marcador_regex": r"II\.?\s*EMPR[ÉE]STIMO\s+CONCEDIDO",
-    "marcador_fim_regex": r"III\.?\s*CUSTO\s+EFETIVO\s+TOTAL",
-    "altura_fallback_ratio": 0.50,
+    "marcador_regex": r"(?:II|III)\.?\s*EMPR[ÉE]STIMO\s+CONCEDIDO",
+    "marcador_fim_regex": r"DA\s+LIBERA[ÇC][ÃA]O\s+DO\s+CR[ÉE]DITO",
+    "altura_fallback_ratio": 0.45,
 }
 
 # ─── Saída ──────────────────────────────────────────────────────────────────

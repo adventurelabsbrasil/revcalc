@@ -21,6 +21,7 @@ Uso:
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import subprocess
 import tempfile
@@ -28,6 +29,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Locale BR forçado no LibreOffice headless — garante datas dd/mm/yyyy e moeda
+# R$ 1.234,56 mesmo se o ambiente (container/host) subir em locale C/US. Exige o
+# locale pt_BR.UTF-8 gerado no SO (ver server/Dockerfile).
+_SOFFICE_ENV = {**os.environ, "LANG": "pt_BR.UTF-8", "LC_ALL": "pt_BR.UTF-8", "LANGUAGE": "pt_BR:pt"}
 
 
 # ─── Modelos ───────────────────────────────────────────────────────────────
@@ -109,6 +115,7 @@ def _xlsx_para_pdf(xlsx_bytes: bytes, *, timeout_s: int = 60) -> bytes:
                 text=True,
                 timeout=timeout_s,
                 check=True,
+                env=_SOFFICE_ENV,
             )
         except subprocess.TimeoutExpired:
             raise CapturasError(

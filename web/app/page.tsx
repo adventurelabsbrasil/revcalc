@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Novidades from "@/components/Novidades";
 import ProgressLog, { LogLine } from "@/components/ProgressLog";
 import {
   CalculoExistente,
@@ -176,6 +177,7 @@ export default function Home() {
           {ver && <small style={{ opacity: 0.6, marginLeft: 8 }}>v{ver}</small>}
         </span>
         <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <Novidades />
           <Link className="link" href="/feedback">
             Feedback
           </Link>

@@ -12,6 +12,7 @@ endpoint responde 503 sem derrubar o resto do app.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Optional
 
@@ -21,6 +22,47 @@ from calculadora_crefaz import __version__ as APP_VERSION
 from .settings import get_settings
 
 logger = logging.getLogger(__name__)
+
+# Tarefas de notificação em background (fire-and-forget). Mantém referência forte
+# pra elas não serem coletadas pelo GC antes de terminar.
+_bg_tasks: set = set()
+
+
+def _fire_and_forget(coro) -> None:
+    """Agenda `coro` sem bloquear; se não há loop rodando (ex.: contexto sync), descarta."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        coro.close()
+        return
+    task = loop.create_task(coro)
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
+
+
+def _agendar_notificacao_founder(s, *, tipo, mensagem, email, origem) -> None:
+    """Dispara o alerta de feedback pro Founder (WhatsApp/Evolution), best-effort."""
+    from . import notify
+
+    text = notify.montar_texto_feedback(
+        projeto="RevCalc",
+        cliente=getattr(s, "notify_cliente", "Rose Portal Advocacia"),
+        tipo=tipo,
+        origem=origem,
+        email=email,
+        mensagem=mensagem,
+        app_version=APP_VERSION,
+    )
+    _fire_and_forget(
+        notify.enviar_whatsapp(
+            api_url=s.evolution_api_url,
+            api_key=s.evolution_api_key,
+            instance=s.evolution_instance,
+            destinos=s.founder_notify_wa,
+            text=text,
+        )
+    )
+
 
 TIPOS_VALIDOS = {"feat", "bug", "erro_sistema", "duvida"}
 ORIGENS_VALIDAS = {"manual", "auto"}
@@ -114,5 +156,10 @@ async def registrar(
     if resp.status_code not in (200, 201, 204):
         logger.error("Feedback insert falhou: %s %s", resp.status_code, resp.text[:500])
         raise FeedbackError(f"Falha ao gravar o feedback (HTTP {resp.status_code}).")
+
+    # Avisa o Founder (WhatsApp grupo "Comando Estelar") — best-effort, não bloqueia
+    # nem quebra o submit. No-op se a notificação não estiver configurada.
+    if getattr(s, "notify_enabled", False):
+        _agendar_notificacao_founder(s, tipo=tipo, mensagem=msg, email=email, origem=origem)
 
     return {"ok": True}

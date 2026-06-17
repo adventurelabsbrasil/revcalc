@@ -29,6 +29,18 @@ _ROW_PARCELAS_INICIO = 132
 _ROW_PARCELAS_FIM = 155
 _REF_PARCELA_IDX = 131  # ROW()-131 = índice da parcela
 
+# Range físico (início, fim) das 3 tabelas de parcelas por aba — usado para
+# ocultar as linhas excedentes ao prazo (ver _ocultar_linhas_excedentes).
+# ATIVO: aba CÁLCULO (cap. 24). QUITADO: abas PRICE, capacidade crescente +
+# offset de layout (+1 linha nas longas). Parcela N ocupa a linha `início+N-1`.
+_RANGE_PARCELAS_POR_ABA = {
+    NOME_ABA_CALCULO: (132, 155),
+    "PRICE 24X": (132, 155),
+    "PRICE 36x": (133, 168),
+    "PRICE 48x": (133, 180),
+    "PRICE 60x": (133, 192),
+}
+
 
 @dataclass
 class DadosPlanilha:
@@ -138,6 +150,24 @@ def _corrigir_tabelas_parcelas_e_colunas(ws, aba: str) -> None:
         ws.column_dimensions[letter].width = max(float(cur or 8), 10.0)
 
 
+def _ocultar_linhas_excedentes(ws, aba: str, prazo: int) -> None:
+    """Oculta as linhas das tabelas de parcelas além de `prazo` (ATIVO e QUITADO).
+
+    As 3 tabelas (PARCELAS CONFORME O CONTRATO / RECALCULADAS / VALORES PAGOS)
+    dividem um range físico fixo por aba; as fórmulas já esvaziam o excedente, mas
+    as linhas em branco continuavam visíveis com bordas. Fecha a tabela em
+    exatamente N linhas = nº de parcelas do contrato (feedback Rose/Bruna v0.9.7).
+    Parcela N ocupa a linha `início + N - 1`; oculta de `início + prazo` até o fim.
+    """
+    faixa = _RANGE_PARCELAS_POR_ABA.get(aba)
+    if not faixa:
+        return
+    inicio, fim = faixa
+    primeira_oculta = inicio + prazo
+    for r in range(inicio, fim + 1):
+        ws.row_dimensions[r].hidden = r >= primeira_oculta
+
+
 def _preencher_aba_dados(ws, dados: DadosPlanilha) -> None:
     """Escreve apenas na aba DADOS — a aba PRICE deve usar fórmulas =DADOS!..."""
     c = CELULAS_DADOS
@@ -202,6 +232,7 @@ def gerar_xlsx(
 
     _forcar_landscape(ws, aba)
     _corrigir_tabelas_parcelas_e_colunas(ws, aba)
+    _ocultar_linhas_excedentes(ws, aba, dados.contrato.prazo)
 
     # Força recálculo na abertura — sem isso, openpyxl salva o XLSX sem
     # calcChain.xml e a primeira renderização (LibreOffice headless ou

@@ -63,6 +63,13 @@ def test_caso_18_parcelas_aba_calculo_e_formulas_dinamicas():
     assert ws["U41"].value == "=$I$15"
     assert ws["AV41"].value == "=$I$15"
 
+    # Linhas exatas = nº de parcelas (v0.9.7): 18 parcelas → linhas 132–149
+    # visíveis (parcela N ocupa a linha 131+N), 150–155 ocultas.
+    assert ws.row_dimensions[132].hidden is False   # parcela 1
+    assert ws.row_dimensions[149].hidden is False   # parcela 18 (última)
+    assert ws.row_dimensions[150].hidden is True    # 1ª excedente
+    assert ws.row_dimensions[155].hidden is True    # última do range fixo
+
     # Linha 5 ("Data do 1º vencimento") oculta; impressão landscape A4.
     assert ws.row_dimensions[5].hidden is True
     assert ws.page_setup.orientation == "landscape"

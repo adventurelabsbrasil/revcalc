@@ -190,6 +190,12 @@ class TestGerarXlsxQuitado:
         assert ws["U41"].value == "=$I$15"
         assert ws["AV41"].value == "=$I$15"
 
+        # Linhas exatas (v0.9.7): 18 parcelas → 132–149 visíveis, 150–155 ocultas.
+        assert ws.row_dimensions[132].hidden is False
+        assert ws.row_dimensions[149].hidden is False
+        assert ws.row_dimensions[150].hidden is True
+        assert ws.row_dimensions[155].hidden is True
+
     def test_36x_offset_de_celulas(self):
         """Quitado prazo 25–36 → aba PRICE 36x com offset de linha (+1)."""
         contrato = _contrato_marli()
@@ -208,6 +214,12 @@ class TestGerarXlsxQuitado:
         assert ws["I16"].value == 30       # qtd parcelas (I15→I16)
         assert ws["BL9"].value == 30       # parcelas pagas (BL8→BL9)
         assert ws["D6"].value.date() == date(2026, 2, 2)  # 1º venc (D5→D6)
+
+        # Linhas exatas (v0.9.7): 30 parcelas → 133–162 visíveis, 163–168 ocultas.
+        assert ws.row_dimensions[133].hidden is False
+        assert ws.row_dimensions[162].hidden is False
+        assert ws.row_dimensions[163].hidden is True
+        assert ws.row_dimensions[168].hidden is True
 
     def test_prazo_acima_de_60_lanca(self):
         contrato = _contrato_marli()

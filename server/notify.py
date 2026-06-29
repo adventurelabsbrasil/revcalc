@@ -75,6 +75,7 @@ async def enviar_whatsapp(
     destinos = tuple(destinos or ())
     if not (api_url and api_key and destinos):
         return 0
+    text = f"[Comando Estelar]\n{text}"  # assinatura prévia em toda notificação do sistema
     endpoint = f"{api_url}/message/sendText/{instance}"
     headers = {"Content-Type": "application/json", "apikey": api_key}
     enviados = 0

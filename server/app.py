@@ -26,16 +26,11 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
-from calculadora_crefaz import __version__ as ENGINE_VERSION, drive
-from calculadora_crefaz.exceptions import (
-    AuthError,
-    CalculadoraError,
-    ContratoNaoEncontrado,
-    PastaAmbigua,
-    PastaNaoEncontrada,
-)
+from calculadora_crefaz import __version__ as ENGINE_VERSION
+from calculadora_crefaz.exceptions import AuthError
 
 from . import auth_web, feedback, token_store
+from .run_input import extrair_nomes
 from .sessions import FIM, manager
 from .settings import get_settings
 
@@ -208,12 +203,11 @@ def create_app() -> FastAPI:
             return JSONResponse({"error": "nao_autenticado"}, status_code=401)
 
         body = await request.json()
-        nome = (body.get("nome") or "").strip()
-        forcar = bool(body.get("forcar", False))
-
-        if len(nome.split()) < 2:
+        nomes = extrair_nomes(body)
+        if not nomes:
             return JSONResponse(
-                {"error": "Digite o nome completo (mínimo 2 palavras)."}, status_code=400
+                {"error": "Digite ao menos um nome completo de cliente (mínimo 2 palavras)."},
+                status_code=400,
             )
 
         sessao = token_store.carregar_sessao(email)
@@ -223,35 +217,10 @@ def create_app() -> FastAPI:
             _clear_session_cookie(resp)
             return resp
 
-        # Pré-check (localizar pasta + subpastas + dedup) numa thread — chamadas
-        # Drive bloqueantes. Varre raiz E subpastas (v0.9.5): um run processa
-        # várias pastas, e cada uma com cálculo prévio precisa de confirmação.
-        try:
-            existentes = await asyncio.to_thread(_precheck, sessao, nome, forcar)
-        except PastaNaoEncontrada as e:
-            return JSONResponse(
-                {"error": str(e), "sugestoes": e.sugestoes}, status_code=404
-            )
-        except PastaAmbigua as e:
-            return JSONResponse({"error": str(e), "paths": e.paths}, status_code=409)
-        except CalculadoraError as e:
-            return JSONResponse({"error": str(e)}, status_code=400)
-
-        if existentes:
-            # Já há cálculo em uma ou mais pastas e usuário não forçou → confirma.
-            return JSONResponse(
-                {
-                    "needs_confirmation": True,
-                    "existentes": existentes,
-                    # Compat com front antigo (1ª pasta): mostra ao menos uma.
-                    "nome_arquivo": existentes[0]["nome_arquivo"],
-                    "modified_time": existentes[0]["modified_time"],
-                },
-                status_code=409,
-            )
-
+        # v0.9.8: roda direto (sem pré-check/confirmação). Já-calculados são pulados
+        # e nomes não encontrados/ambíguos viram status no relatório por-cliente.
         run_obj = manager.criar(email)
-        manager.iniciar(run_obj, sessao, nome, forcar_sobrescrita=forcar)
+        manager.iniciar(run_obj, sessao, nomes)
         stream_token = auth_web.assinar_stream_token(run_obj.id, email)
         return JSONResponse(
             {
@@ -297,42 +266,6 @@ def create_app() -> FastAPI:
         )
 
     return app
-
-
-def _precheck(sessao, nome: str, forcar: bool) -> list[dict]:
-    """Localiza a pasta raiz + subpastas diretas e checa dedup em cada uma.
-
-    Retorna a lista de pastas que serão SOBRESCRITAS (têm contrato Crefaz E um
-    cálculo prévio) — cada item: {pasta, is_raiz, nome_arquivo, modified_time}.
-    Lista vazia = nada a confirmar (ou forcar=True). Espelha o que o run faz:
-    só conta como sobrescrita a pasta que de fato será processada (com contrato),
-    evitando alarme falso numa subpasta sem contrato (ex.: "Documentos"). v0.9.5.
-
-    Levanta PastaNaoEncontrada/PastaAmbigua/CalculadoraError (mapeadas no endpoint).
-    """
-    service = sessao.drive_service()
-    pasta_raiz = drive.localizar_pasta_cliente(service, nome)
-    if forcar:
-        return []
-    subpastas = drive.listar_subpastas(service, pasta_raiz)
-    existentes: list[dict] = []
-    for pasta in [pasta_raiz, *subpastas]:
-        existente = drive.buscar_calculo_existente(service, pasta.id)
-        if not existente:
-            continue
-        try:
-            drive.localizar_contrato(service, pasta.id)
-        except ContratoNaoEncontrado:
-            continue  # sem contrato → run pula a pasta → não sobrescreve
-        existentes.append(
-            {
-                "pasta": pasta.nome_real,
-                "is_raiz": pasta is pasta_raiz,
-                "nome_arquivo": existente.name,
-                "modified_time": existente.modified_time or "data desconhecida",
-            }
-        )
-    return existentes
 
 
 # Instância p/ uvicorn: `uvicorn server.app:app`

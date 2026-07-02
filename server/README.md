@@ -79,11 +79,14 @@ sem ele o cálculo ainda roda — só não gera os prints (degradação não-fat
 | GET | `/api/auth/callback` | troca code, valida domínio, seta cookie |
 | POST | `/api/auth/logout` | limpa cookie + apaga token |
 | GET | `/api/me` | `{email}` do logado (401 se não) |
-| POST | `/api/run` | inicia run; `409` se cálculo já existe (pede confirmação) |
+| POST | `/api/run` | inicia run do lote (`{nomes:[…]}` ou `{nome}` compat); `400` se nenhum nome válido |
 | GET | `/api/run/{id}/events?t=…` | SSE com o progresso ao vivo |
 
-### Fluxo de dedup (sem stream bidirecional)
-`POST /api/run {nome}` → se já existe `10 Cálculo….xlsx`, responde `409
-{needs_confirmation, nome_arquivo, modified_time}`. O front confirma e re-posta
-`{nome, forcar:true}`. Aí o backend devolve `{run_id, events_url}` e o front abre
-o `EventSource` em `events_url`.
+### Fluxo do run (lote + pular já-calculados — v0.9.8)
+`POST /api/run {nomes:[…]}` (ou `{nome}` para um só) → o backend valida (≥2 palavras
+por nome, via `run_input.extrair_nomes`) e devolve `{run_id, events_url}`; o front
+abre o `EventSource`. **Sem pré-check/confirmação:** o run processa cada cliente em
+sequência (`pipeline.executar_lote`), **pula** contratos que já têm cálculo
+(`Calculo[.quitado].xlsx`) e isola erro por-cliente. O evento `done` traz o
+relatório por-cliente (`{clientes:[…], resumo:{…}}`). Para refazer um cálculo,
+apague o arquivo na pasta do Drive (não há sobrescrita pela UI).

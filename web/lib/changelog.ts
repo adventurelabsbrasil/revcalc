@@ -10,6 +10,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.9.8",
+    date: "02/07/2026",
+    items: [
+      "Não refaz cálculo já feito: contratos que já têm cálculo na pasta são pulados automaticamente — a calculadora processa só os que faltam. Para refazer um, apague o arquivo Calculo.xlsx (ou Calculo quitado.xlsx) da pasta dele no Drive.",
+      "Processe vários clientes de uma vez: adicione os nomes um a um e rode em lote. O relatório mostra, por cliente, o que foi calculado, o que já estava feito e o que não foi encontrado.",
+    ],
+  },
+  {
     version: "0.9.7",
     date: "17/06/2026",
     items: [

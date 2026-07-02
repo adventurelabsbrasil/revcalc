@@ -72,7 +72,11 @@ def test_enviar_whatsapp_posta_para_cada_destino(monkeypatch):
     assert n == 2
     assert chamadas[0]["url"] == "https://wa.example.com/message/sendText/adventure"
     assert chamadas[0]["headers"]["apikey"] == "k"
-    assert chamadas[0]["json"] == {"number": "12036304180@g.us", "text": "alerta"}
+    # notify.enviar_whatsapp assina toda mensagem com "[Comando Estelar]\n" (PR #15).
+    assert chamadas[0]["json"] == {
+        "number": "12036304180@g.us",
+        "text": "[Comando Estelar]\nalerta",
+    }
     assert chamadas[1]["json"]["number"] == "5551999990000"
 
 

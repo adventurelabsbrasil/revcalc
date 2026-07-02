@@ -92,8 +92,17 @@ class PrazoForaDoTemplate(CalculadoraError):
         super().__init__(f"PRAZO FORA DO TEMPLATE: {prazo} parcelas (máximo suportado: 60).")
 
 
-class BloqueioDedup(CalculadoraError):
-    """Cálculo já existe e usuário não confirmou sobrescrita."""
+class CalculoJaExiste(CalculadoraError):
+    """Já existe cálculo na pasta do contrato → o run PULA (não refaz).
+
+    Não é erro fatal: o orquestrador captura e registra a pasta como pulada.
+    Para refazer, apague o `Calculo.xlsx`/`Calculo quitado.xlsx` da pasta no Drive.
+    """
+
+    def __init__(self, pasta: str, arquivo: str):
+        self.pasta = pasta
+        self.arquivo = arquivo
+        super().__init__(f"Cálculo '{arquivo}' já existe na pasta '{pasta}' — pulado (não refeito).")
 
 
 class ValidacaoContratoWarning(Warning):

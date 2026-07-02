@@ -26,6 +26,9 @@ Suba o backend em paralelo (`uvicorn server.app:app --port 8000`).
 
 ## Fluxo
 
-`GET /api/me` → se logado, mostra o form. "Calcular" faz `POST /api/run`; em
-`409 needs_confirmation` mostra o diálogo de sobrescrita; senão abre um
-`EventSource` no `events_url` e transmite o progresso até `done`/`error`.
+`GET /api/me` → se logado, mostra o form. Adicione um ou vários nomes (fila de
+chips) e clique "Calcular": faz `POST /api/run {nomes:[…]}`, abre um `EventSource`
+no `events_url` e transmite o progresso até `done`/`error`. O `done` traz o
+relatório por-cliente (calculado / já feito / não encontrado). Não há diálogo de
+sobrescrita — contratos já calculados são pulados (para refazer, apague o
+`Calculo.xlsx` na pasta do Drive).

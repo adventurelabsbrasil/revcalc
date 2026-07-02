@@ -17,8 +17,12 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from calculadora_crefaz.auth_core import SessaoAutenticada
-from calculadora_crefaz.exceptions import CalculadoraError
-from calculadora_crefaz.pipeline import ResultadoPipeline, executar
+from calculadora_crefaz.pipeline import (
+    ClienteResultado,
+    ResultadoLote,
+    ResultadoPipeline,
+    executar_lote,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +38,27 @@ def _resultado_para_dict(res: ResultadoPipeline) -> dict[str, Any]:
         "arquivos_gerados": [
             {"nome": a.nome, "status": str(a.status)} for a in res.arquivos_gerados
         ],
+        "pulados": list(res.pulados),
+    }
+
+
+def _cliente_para_dict(c: ClienteResultado) -> dict[str, Any]:
+    d: dict[str, Any] = {"nome": c.nome, "status": c.status}
+    if c.resultado is not None:
+        d["resultado"] = _resultado_para_dict(c.resultado)
+    if c.erro:
+        d["erro"] = c.erro
+    if c.sugestoes:
+        d["sugestoes"] = list(c.sugestoes)
+    if c.paths:
+        d["paths"] = list(c.paths)
+    return d
+
+
+def _lote_para_dict(res: ResultadoLote) -> dict[str, Any]:
+    return {
+        "clientes": [_cliente_para_dict(c) for c in res.clientes],
+        "resumo": dict(res.resumo),
     }
 
 
@@ -66,11 +91,13 @@ class RunManager:
         self,
         run: Run,
         sessao: SessaoAutenticada,
-        nome_cliente: str,
-        *,
-        forcar_sobrescrita: bool,
+        nomes: list[str],
     ) -> None:
-        """Agenda o pipeline numa thread; eventos fluem para run.queue."""
+        """Agenda o lote de clientes numa thread; eventos fluem para run.queue.
+
+        v0.9.8: um run processa N clientes em sequência (executar_lote). Erros
+        por-cliente viram status no relatório; só falha inesperada global emite
+        `error`. O `done` carrega o relatório por-cliente (_lote_para_dict)."""
         loop = asyncio.get_running_loop()
 
         def emit(tipo: str, **kw: Any) -> None:
@@ -84,18 +111,13 @@ class RunManager:
 
         def trabalho() -> None:
             try:
-                res = executar(
-                    nome_cliente,
+                res = executar_lote(
+                    nomes,
                     sessao,
-                    forcar_sobrescrita=forcar_sobrescrita,
                     status=status_cb,
                     aviso=aviso_cb,
-                    # Dedup já foi resolvido no pré-check (POST /api/run → 409).
-                    confirmar_dedup=lambda _: True,
                 )
-                emit("done", result=_resultado_para_dict(res))
-            except CalculadoraError as e:
-                emit("error", error=str(e), kind=type(e).__name__)
+                emit("done", result=_lote_para_dict(res))
             except Exception as e:  # noqa: BLE001 — erro inesperado vira evento, não crash
                 logger.exception("Run %s falhou inesperadamente", run.id)
                 emit("error", error=f"Erro inesperado: {e}", kind="Exception")

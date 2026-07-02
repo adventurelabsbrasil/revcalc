@@ -1,8 +1,8 @@
 # Calculadora de Ação Crefaz
 
-**Versão atual:** `v0.9.7` · **Cliente:** Rose Portal Advocacia  
+**Versão atual:** `v0.9.8` · **Cliente:** Rose Portal Advocacia  
 
-Automatiza o cálculo de revisão de contratos **Crefaz**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica.
+Automatiza o cálculo de revisão de contratos **Crefaz**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica. Aceita **vários clientes em lote** e **pula automaticamente** contratos que já têm cálculo.
 
 ## ⚡ Versão Web (produção)
 
@@ -44,9 +44,13 @@ As três tabelas de parcelas (**PARCELAS CONFORME O CONTRATO** / **PARCELAS RECA
 
 O recorte da **imag.01** (bloco "EMPRÉSTIMO CONCEDIDO" do contrato) agora ancora o fim na **última linha do próprio bloco** — `C.E.T. TAXA ANUAL: …%` (corte **inclusivo**, logo abaixo dela) — em vez de depender do cabeçalho da seção seguinte, que **varia entre layouts**: no contrato **ativo** a seção seguinte é `III. CUSTO EFETIVO TOTAL` (o recorte varava pra dentro dela); no **quitado**, `CUSTO EFETIVO TOTAL` aparece como cabeçalho de coluna *dentro* do bloco e a seção seguinte é `IV. DA LIBERAÇÃO DO CRÉDITO`. A âncora `C.E.T. TAXA ANUAL` existe nos dois → fecha o bloco certo em ambos.
 
-### ⚠️ Confirmação antes de sobrescrever (v0.9.5)
+### ⏭️ Não refaz cálculo já feito + 🗂️ lote de clientes (v0.9.8)
 
-O pré-check de dedup agora varre **a raiz E as subpastas diretas**: se **qualquer** pasta que será processada já tiver um cálculo (`Calculo*.xlsx`), o app **para e pede confirmação na UI** antes de iniciar, listando todas as pastas que serão substituídas. Só depois do "Sobrescrever todos" o run roda. Antes da v0.9.5 o pré-check só olhava a raiz — subpastas com cálculo manual prévio eram sobrescritas sem aviso. Pastas sem contrato (que o run pula) não entram no alerta.
+**Regra de pular (pedido da cliente).** Ao rodar, cada pasta com contrato Crefaz que **já tem um cálculo** (`Calculo.xlsx` / `Calculo quitado.xlsx` / legado `10 Cálculo*.xlsx`) é **pulada automaticamente** — a calculadora processa **só os contratos que faltam**. Nada é sobrescrito e o run **não trava** quando encontra um cálculo prévio (antes, o app parava e pedia "Sobrescrever todos?", refazendo tudo ou nada). Para **refazer** um cálculo, apague o `Calculo.xlsx` (ou `Calculo quitado.xlsx`) da pasta dele no Drive e rode de novo — a UI traz essa instrução. Se **todos** os contratos da cliente já têm cálculo, o resultado diz "nada novo" (sem erro).
+
+**Lote de clientes.** A tela aceita **vários nomes** (adicione um a um → fila de chips). O run processa cada cliente em sequência, aplicando a regra de pular; nome **não encontrado / ambíguo não interrompe** a tanda — vira status no **relatório por-cliente** ao final (✅ calculado · ⏭️ já feito · 🔎 não encontrado · ⚠️ erro), com resumo no topo. Um único nome continua funcionando (fila de 1).
+
+*Removido na v0.9.8:* o pré-check de dedup + confirmação "Sobrescrever todos" da v0.9.5 (o endpoint não faz mais 409/`needs_confirmation`; roda direto e reporta).
 
 ### 📨 Feedback do usuário (v0.8.0)
 
@@ -264,7 +268,8 @@ Estrutura típica de saída na pasta da cliente (`EMPRESTIMO DE ENERGIA/.../Nome
 ## Mensagens comuns no log da UI
 
 - **Sucesso:** `Pasta encontrada`, `Contrato lido`, `Pronto`.
-- **Aviso:** BACEN copiado do repositório central; sobrescrever cálculo existente; capturas não geradas (LibreOffice ausente ou não detectado).
+- **Pulado:** `[pulado] <pasta>: já tem cálculo … — não refeito` (contrato já calculado; apague o `Calculo.xlsx` no Drive para refazer).
+- **Aviso:** BACEN copiado do repositório central; capturas não geradas (LibreOffice ausente ou não detectado).
 
 ### Erros que interrompem o fluxo
 

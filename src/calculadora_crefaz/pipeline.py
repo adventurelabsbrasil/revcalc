@@ -32,7 +32,14 @@ from .config import (
     master_run_log_url,
     nome_xlsx_saida,
 )
-from .exceptions import BloqueioDedup, ContratoNaoEncontrado, EntradaInvalida
+from .exceptions import (
+    CalculadoraError,
+    CalculoJaExiste,
+    ContratoNaoEncontrado,
+    EntradaInvalida,
+    PastaAmbigua,
+    PastaNaoEncontrada,
+)
 from .log_writer import ArquivoGerado
 from .sheets_run_log import append_master_run_row, build_master_run_row
 from .planilha import DadosPlanilha, gerar_xlsx
@@ -41,7 +48,6 @@ logger = logging.getLogger(__name__)
 
 
 StatusCallback = Callable[[str], None]
-ConfirmDedupCallback = Callable[[str], bool]
 
 
 @dataclass
@@ -60,6 +66,28 @@ class ResultadoPipeline:
     files_after: int = 0
     files_added: int = 0
     files_modified: int = 0
+    # Pastas/contratos que já tinham cálculo e foram PULADOS (não refeitos).
+    # Cada item: {"pasta": <nome>, "arquivo": <nome do Calculo existente>}.
+    pulados: list[dict] = field(default_factory=list)
+
+
+# ── Lote de múltiplos clientes ───────────────────────────────────────────────
+# Status por cliente: "ok" (calculou algo) · "nada_novo" (tudo já feito, pulou) ·
+# "nao_encontrado" · "ambiguo" · "erro".
+@dataclass
+class ClienteResultado:
+    nome: str
+    status: str
+    resultado: Optional[ResultadoPipeline] = None
+    erro: Optional[str] = None
+    sugestoes: list[str] = field(default_factory=list)
+    paths: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ResultadoLote:
+    clientes: list[ClienteResultado] = field(default_factory=list)
+    resumo: dict = field(default_factory=dict)
 
 
 def _validar_nome(nome: str) -> str:
@@ -112,15 +140,28 @@ def _agregar(resultados: list[ResultadoPipeline], pasta_raiz) -> ResultadoPipeli
     )
 
 
+def _resultado_vazio_pulados(pasta_raiz, pulados: list[dict]) -> ResultadoPipeline:
+    """Resultado 'nada novo': todos os contratos da cliente já tinham cálculo.
+
+    Não é erro — a cliente pediu que já-calculados sejam pulados. Carrega só a
+    lista de `pulados` e o link da pasta raiz (sem arquivos gerados)."""
+    return ResultadoPipeline(
+        pasta_drive_path=pasta_raiz.path,
+        pasta_drive_url=drive.url_pasta(pasta_raiz.id),
+        xlsx_file_id="",
+        log_file_id="",
+        bacen_file_id=None,
+        pulados=pulados,
+    )
+
+
 def executar(
     nome_cliente: str,
     sessao: SessaoAutenticada,
     *,
     forcar_contrato_nome: Optional[str] = None,
-    forcar_sobrescrita: bool = False,
     status: StatusCallback = _noop,
     aviso: StatusCallback = _noop,
-    confirmar_dedup: ConfirmDedupCallback = lambda _: False,
     hoje: Optional[date] = None,
 ) -> ResultadoPipeline:
     """Orquestra o run: processa a pasta RAIZ + cada SUBPASTA DIRETA com contrato.
@@ -128,6 +169,10 @@ def executar(
     v0.9.4: alguns clientes têm o contrato ativo na raiz e contratos quitados em
     subpastas (ex.: VLADIMIR). Processa cada pasta com contrato Crefaz, gravando a
     saída na respectiva pasta; pastas sem contrato são puladas silenciosamente.
+
+    v0.9.8: contrato que já tem cálculo na pasta é PULADO (não refeito) — a cliente
+    apaga o Calculo.xlsx no Drive se quiser recalcular. As pastas puladas voltam em
+    `ResultadoPipeline.pulados`; "tudo pulado" não é erro (retorna resultado vazio).
     """
     nome_cliente = _validar_nome(nome_cliente)
     hoje = hoje or date.today()
@@ -139,7 +184,7 @@ def executar(
     emit("=== Planned steps ===")
     for step in (
         "Locate client folder on Drive (+ direct subfolders)",
-        "For each folder with a Crefaz contract: dedup, parse, BACEN, XLSX, captures, run log",
+        "For each folder with a Crefaz contract (skip if already calculated): parse, BACEN, XLSX, captures, run log",
     ):
         emit(f"  • {step}")
     emit("")
@@ -155,6 +200,7 @@ def executar(
         emit(f"Direct subfolders: {len(subpastas)} — each with a Crefaz contract will be processed too.")
 
     resultados: list[ResultadoPipeline] = []
+    pulados: list[dict] = []
     for pasta in pastas:
         is_raiz = pasta is pasta_raiz
         if not is_raiz:
@@ -167,24 +213,83 @@ def executar(
                     sessao,
                     pasta,
                     forcar_contrato_nome=forcar_contrato_nome if is_raiz else None,
-                    forcar_sobrescrita=forcar_sobrescrita,
                     emit=emit,
                     aviso=aviso,
-                    confirmar_dedup=confirmar_dedup,
                     hoje=hoje,
                 )
             )
         except ContratoNaoEncontrado:
             emit(f"[skipped] {pasta.nome_real} — no Crefaz contract in this folder.")
+        except CalculoJaExiste as e:
+            pulados.append({"pasta": e.pasta, "arquivo": e.arquivo})
 
     if not resultados:
+        if pulados:
+            emit("")
+            emit(f"Nothing new — {len(pulados)} contract(s) already calculated (skipped).")
+            return _resultado_vazio_pulados(pasta_raiz, pulados)
         raise ContratoNaoEncontrado(
             "Nenhum contrato Crefaz encontrado na pasta da cliente nem nas subpastas diretas."
         )
 
     emit("")
-    emit(f"All done — {len(resultados)} folder(s) processed.")
-    return _agregar(resultados, pasta_raiz)
+    emit(
+        f"All done — {len(resultados)} folder(s) processed"
+        + (f", {len(pulados)} already-calculated skipped." if pulados else ".")
+    )
+    resultado = _agregar(resultados, pasta_raiz)
+    resultado.pulados = pulados
+    return resultado
+
+
+def executar_lote(
+    nomes: list[str],
+    sessao: SessaoAutenticada,
+    *,
+    status: StatusCallback = _noop,
+    aviso: StatusCallback = _noop,
+    hoje: Optional[date] = None,
+) -> ResultadoLote:
+    """Processa VÁRIOS clientes em sequência (v0.9.8), aplicando a regra de pular
+    em cada um. Erro por-cliente (nome não encontrado/ambíguo/sem contrato) NÃO
+    interrompe a tanda — vira status no relatório. Retorna ResultadoLote."""
+    clientes: list[ClienteResultado] = []
+    for nome in nomes:
+        status("")
+        status(f"=== Cliente: {nome} ===")
+        try:
+            res = executar(nome, sessao, status=status, aviso=aviso, hoje=hoje)
+            eh_nada_novo = not res.arquivos_gerados and bool(res.pulados)
+            clientes.append(
+                ClienteResultado(nome, "nada_novo" if eh_nada_novo else "ok", resultado=res)
+            )
+        except PastaNaoEncontrada as e:
+            status(f"[cliente não encontrado] {nome}")
+            clientes.append(
+                ClienteResultado(nome, "nao_encontrado", erro=str(e), sugestoes=e.sugestoes)
+            )
+        except PastaAmbigua as e:
+            status(f"[cliente ambíguo] {nome}")
+            clientes.append(ClienteResultado(nome, "ambiguo", erro=str(e), paths=e.paths))
+        except CalculadoraError as e:
+            # ContratoNaoEncontrado, EntradaInvalida, erros de parse/BACEN etc.
+            status(f"[erro] {nome}: {e}")
+            clientes.append(ClienteResultado(nome, "erro", erro=str(e)))
+
+    resumo = {
+        "total": len(clientes),
+        "ok": sum(1 for c in clientes if c.status == "ok"),
+        "nada_novo": sum(1 for c in clientes if c.status == "nada_novo"),
+        "nao_encontrados": sum(1 for c in clientes if c.status in ("nao_encontrado", "ambiguo")),
+        "erros": sum(1 for c in clientes if c.status == "erro"),
+        "pulados_total": sum(len(c.resultado.pulados) for c in clientes if c.resultado),
+    }
+    status("")
+    status(
+        f"Batch done — {resumo['ok']} calculated · {resumo['nada_novo']} nothing-new · "
+        f"{resumo['nao_encontrados']} not-found · {resumo['erros']} error(s)."
+    )
+    return ResultadoLote(clientes=clientes, resumo=resumo)
 
 
 def _processar_pasta(
@@ -193,31 +298,24 @@ def _processar_pasta(
     pasta,
     *,
     forcar_contrato_nome: Optional[str],
-    forcar_sobrescrita: bool,
     emit: StatusCallback,
     aviso: StatusCallback,
-    confirmar_dedup: ConfirmDedupCallback,
     hoje: date,
 ) -> ResultadoPipeline:
     """Processa UMA pasta (raiz ou subpasta). Lança ContratoNaoEncontrado se não
-    houver contrato Crefaz (o orquestrador pula a pasta)."""
+    houver contrato Crefaz (o orquestrador pula a pasta). Lança CalculoJaExiste se
+    a pasta já tem cálculo — o orquestrador registra como pulado (não refaz)."""
     t0 = time.perf_counter()
     files_before = drive.contar_arquivos_na_pasta(service, pasta.id)
     emit(f"Items in folder (before run): {files_before}")
 
     calculo_existente = drive.buscar_calculo_existente(service, pasta.id)
-    if calculo_existente and not forcar_sobrescrita:
+    if calculo_existente:
         emit(
-            f"Existing calculation: {calculo_existente.name} "
-            f"(modified {calculo_existente.modified_time})"
+            f"[pulado] {pasta.nome_real}: já tem cálculo ({calculo_existente.name}, "
+            f"modificado {calculo_existente.modified_time}) — não refeito."
         )
-        if not confirmar_dedup(calculo_existente.modified_time or "unknown"):
-            raise BloqueioDedup(
-                f"Cálculo '{calculo_existente.name}' já existe e usuário não confirmou sobrescrita."
-            )
-        emit("Overwrite confirmed.")
-    elif calculo_existente:
-        emit("Overwrite forced — replacing existing XLSX.")
+        raise CalculoJaExiste(pasta.nome_real, calculo_existente.name)
 
     emit("Locating Crefaz contract PDF...")
     contrato_arquivo = drive.localizar_contrato(

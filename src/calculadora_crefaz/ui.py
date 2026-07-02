@@ -210,13 +210,25 @@ class CalculadoraApp:
                     nome,
                     self.sessao,
                     status=lambda msg: self._log("INFO", msg),
-                    confirmar_dedup=self._confirmar_dedup,
                 )
                 self.ultima_pasta_url = resultado.pasta_drive_url
-                self._log(
-                    "OK",
-                    f"✓ Pronto.\nPasta: {resultado.pasta_drive_url}",
-                )
+                if resultado.pulados and not resultado.arquivos_gerados:
+                    self._log(
+                        "OK",
+                        "✓ Nada novo — todos os contratos já tinham cálculo (pulados).\n"
+                        "Para refazer, apague o Calculo.xlsx da pasta no Drive.\n"
+                        f"Pasta: {resultado.pasta_drive_url}",
+                    )
+                else:
+                    extra = (
+                        f"\n{len(resultado.pulados)} já calculado(s) pulado(s)."
+                        if resultado.pulados
+                        else ""
+                    )
+                    self._log(
+                        "OK",
+                        f"✓ Pronto.\nPasta: {resultado.pasta_drive_url}{extra}",
+                    )
                 self.root.after(
                     0, lambda: self.btn_abrir_pasta.config(state="normal")
                 )
@@ -233,28 +245,6 @@ class CalculadoraApp:
                 self.root.after(0, lambda: self.btn_calcular.config(state="normal"))
 
         threading.Thread(target=trabalho, daemon=True).start()
-
-    def _confirmar_dedup(self, modificado_em: str) -> bool:
-        """Pergunta ao usuário se deve sobrescrever cálculo existente.
-
-        Chamado da thread do pipeline — precisa dispatchar pra main thread
-        e bloquear até resposta.
-        """
-        resultado_holder: dict[str, bool] = {}
-        evento = threading.Event()
-
-        def perguntar():
-            resp = messagebox.askyesno(
-                "Sobrescrever?",
-                f"Cálculo já existe na pasta (modificado em {modificado_em}).\n\n"
-                f"Deseja sobrescrever?",
-            )
-            resultado_holder["resp"] = resp
-            evento.set()
-
-        self.root.after(0, perguntar)
-        evento.wait()
-        return resultado_holder.get("resp", False)
 
     def _abrir_pasta(self) -> None:
         if self.ultima_pasta_url:

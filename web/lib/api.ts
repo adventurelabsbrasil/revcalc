@@ -17,25 +17,49 @@ export interface ArquivoGerado {
   status: string;
 }
 
+export interface Pulado {
+  pasta: string;
+  arquivo: string;
+}
+
 export interface RunResult {
   pasta_drive_path: string;
   pasta_drive_url: string;
   xlsx_file_id: string;
   arquivos_gerados: ArquivoGerado[];
+  pulados: Pulado[];
 }
 
-export interface CalculoExistente {
-  pasta: string;
-  is_raiz: boolean;
-  nome_arquivo: string;
-  modified_time: string;
+// Status por cliente no lote (v0.9.8).
+export type ClienteStatus = "ok" | "nada_novo" | "nao_encontrado" | "ambiguo" | "erro";
+
+export interface ClienteResultado {
+  nome: string;
+  status: ClienteStatus;
+  resultado?: RunResult;
+  erro?: string;
+  sugestoes?: string[];
+  paths?: string[];
+}
+
+export interface ResumoLote {
+  total: number;
+  ok: number;
+  nada_novo: number;
+  nao_encontrados: number;
+  erros: number;
+  pulados_total: number;
+}
+
+export interface LoteResult {
+  clientes: ClienteResultado[];
+  resumo: ResumoLote;
 }
 
 export type StartResponse =
   | { kind: "started"; data: RunStart }
-  | { kind: "needs_confirmation"; existentes: CalculoExistente[] }
   | { kind: "not_authenticated" }
-  | { kind: "error"; message: string; sugestoes?: string[]; paths?: string[] };
+  | { kind: "error"; message: string };
 
 export async function fetchVersion(): Promise<string | null> {
   try {
@@ -73,37 +97,20 @@ export async function logout(): Promise<void> {
   }
 }
 
-export async function startRun(nome: string, forcar: boolean): Promise<StartResponse> {
+// v0.9.8: processa uma FILA de clientes em lote. Já-calculados são pulados e
+// nomes não encontrados viram status no relatório por-cliente (evento `done`).
+export async function startRun(nomes: string[]): Promise<StartResponse> {
   const r = await fetch(`${API_BASE}/api/run`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ nome, forcar }),
+    body: JSON.stringify({ nomes }),
   });
   const body = await r.json().catch(() => ({}));
 
   if (r.ok) return { kind: "started", data: body as RunStart };
   if (r.status === 401) return { kind: "not_authenticated" };
-  if (r.status === 409 && body?.needs_confirmation) {
-    // v0.9.5: lista de pastas a sobrescrever. Fallback p/ shape antigo (1 item).
-    const existentes: CalculoExistente[] = Array.isArray(body.existentes)
-      ? body.existentes
-      : [
-          {
-            pasta: "",
-            is_raiz: true,
-            nome_arquivo: body.nome_arquivo,
-            modified_time: body.modified_time,
-          },
-        ];
-    return { kind: "needs_confirmation", existentes };
-  }
-  return {
-    kind: "error",
-    message: body?.error ?? `Erro ${r.status}.`,
-    sugestoes: body?.sugestoes,
-    paths: body?.paths,
-  };
+  return { kind: "error", message: body?.error ?? `Erro ${r.status}.` };
 }
 
 export function fullEventsUrl(eventsPath: string): string {

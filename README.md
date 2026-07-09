@@ -18,7 +18,9 @@ O **engine de cálculo** (`src/calculadora_crefaz/`) é o mesmo do desktop, roda
 
 **Deploy:** backend `docker compose up -d --build` no xeon (`.env` renderizado do Infisical) + túnel `cloudflared` (systemd `--user`); front `vercel --prod` (rootDir `web`, env `NEXT_PUBLIC_API_BASE`). Detalhes em [`server/README.md`](server/README.md) e [`web/README.md`](web/README.md).
 
-**Saída na pasta da cliente** (v0.9.0, sem numeração): `Calculo.xlsx` · `Calculo.pdf` · `imag.01.png` (Item II do contrato, recorte só da seção) · `imag.02.png` (bloco "Parcela com Taxa Média e Expurgo"). No fluxo **quitado** os dois primeiros viram `Calculo quitado.xlsx` · `Calculo quitado.pdf`.
+**Saída na pasta da cliente**: `Calculo.xlsx` · `NN Calculo.pdf` · `NN Series Temporais.pdf` (BACEN) · `imag.01.png` (Item II do contrato, recorte só da seção) · `imag.02.png` (bloco "Parcela com Taxa Média e Expurgo"). No fluxo **quitado** o cálculo vira `Calculo quitado.xlsx` · `NN Calculo quitado.pdf`.
+
+**Numeração sequencial (v0.9.9):** o prefixo `NN` das saídas é **derivado do contrato**, consecutivo — Séries Temporais = contrato **+1**, Cálculo (PDF) = contrato **+2**. Ex.: `09 Contrato Crefaz FULANO.pdf` → `10 Series Temporais.pdf` + `11 Calculo.pdf`; `10 Contrato…` → `11 Series Temporais.pdf` + `12 Calculo.pdf`. A planilha-fonte `Calculo.xlsx` permanece **sem número** (é a chave de dedup). Contrato sem prefixo numérico → fallback legado (`11 Series Temporais.pdf` / `Calculo.pdf` sem número).
 
 ### 🆕 Contratos quitados vs ativos (v0.9.0)
 
@@ -92,8 +94,8 @@ Endpoints: `GET /api/feedback/config` (`{enabled}`) · `POST /api/feedback` (ses
 
 1. Login **Google OAuth** (contas autorizadas na configuração do app).
 2. Busca da pasta da cliente em `EMPRESTIMO DE ENERGIA/<UF>/<NOME>/` no Drive.
-3. Leitura do **`09 Contrato Crefaz.pdf`**, parsing do Item II e dos dados financeiros.
-4. Uso da taxa **BACEN** (PDF **`11 Series Temporais.pdf`** na pasta ou cópia do repositório central da Rose quando faltar).
+3. Leitura do **`NN Contrato Crefaz FULANO.pdf`**, parsing do Item II e dos dados financeiros. O número `NN` do contrato define a sequência das saídas (Séries = `NN+1`, Cálculo = `NN+2`).
+4. Uso da taxa **BACEN** (PDF **`{NN+1} Series Temporais.pdf`** na pasta ou cópia do repositório central da Rose quando faltar).
 5. Geração do **`10 Cálculo …xlsx`**, **`12 Log.txt`** (append) e arquivos **`13 Print …`** (planilha + blocos regionais + trechos dos PDFs).
 
 **Tempo médio:** cerca de 30–60 segundos por execução (rede + tamanho do PDF).
@@ -248,18 +250,17 @@ Alternativa já documentada para equipe Rose (script `instalar-e-testar`) está 
 2. **Entrar com Google** (primeira vez abre o navegador para autorização).
 3. Digitar o **nome completo** da cliente **como aparece na pasta** no Drive (mínimo duas palavras).
 4. **Calcular** — acompanhar o log na janela.
-5. Conferir no Drive: **`10 …xlsx`**, **`12 Log.txt`**, **`13 Print …`** (quando LibreOffice disponível).
+5. Conferir no Drive: **`Calculo.xlsx`**, **`NN Calculo.pdf`**, **`NN Series Temporais.pdf`** e as capturas `imag.01/02.png` (quando LibreOffice disponível).
 
 Estrutura típica de saída na pasta da cliente (`EMPRESTIMO DE ENERGIA/.../Nome/`):
 
 ```
-├── 09 Contrato Crefaz.pdf
-├── 10 Cálculo NOME.xlsx
-├── 11 Series Temporais.pdf    (existente ou copiado pelo app)
-├── 12 Log.txt
-├── 13 Print CÁLCULO.pdf
-├── 13 Print CÁLCULO.png
-├── 13 Print 01 … 08 …        (capturas nomeadas pelo app)
+├── 09 Contrato Crefaz FULANO DE TAL.pdf   (entrada — define a sequência NN)
+├── 10 Series Temporais.pdf                (NN+1; existente ou copiado pelo app)
+├── 11 Calculo.pdf                         (NN+2; PDF do cálculo)
+├── Calculo.xlsx                           (planilha-fonte, sem número — chave de dedup)
+├── imag.01.png                            (recorte Item II do contrato)
+├── imag.02.png                            (bloco "Parcela com Taxa Média e Expurgo")
 └── …
 ```
 

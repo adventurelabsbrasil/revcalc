@@ -223,12 +223,18 @@ def gerar_capturas(
     return CapturasGeradas(pdf_bytes=pdf_bytes, pngs=pngs)
 
 
-def nome_pdf(quitado: bool = False) -> str:
-    """Nome do PDF unificado salvo na pasta da cliente.
+def nome_pdf(quitado: bool = False, seq_contrato: int | None = None) -> str:
+    """Nome do PDF unificado do cálculo salvo na pasta da cliente.
 
     v0.9.0: nome sem numeração ("salvar como Calculo"); variante quitado mantém o sufixo.
+    v0.9.8: prefixo sequencial ``NN`` derivado do contrato (Cálculo = contrato+2).
+    Ex.: contrato 09 → "11 Calculo.pdf". Sem número no contrato → fallback legado
+    sem prefixo ("Calculo.pdf" / "Calculo quitado.pdf").
     """
-    return "Calculo quitado.pdf" if quitado else "Calculo.pdf"
+    base = "Calculo quitado.pdf" if quitado else "Calculo.pdf"
+    if seq_contrato is None:
+        return base
+    return f"{seq_contrato + 2:02d} {base}"
 
 
 def recortar_bloco_pmt_pdf(

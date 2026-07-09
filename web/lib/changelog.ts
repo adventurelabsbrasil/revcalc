@@ -10,6 +10,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.9.9",
+    date: "08/07/2026",
+    items: [
+      "Os arquivos gerados agora seguem a numeração em sequência do contrato: se o contrato é «09 Contrato Crefaz FULANO.pdf», a calculadora salva «10 Series Temporais.pdf» e «11 Calculo.pdf» — sempre consecutivos ao número do contrato. Se o contrato for «10 …», sai «11 Series Temporais.pdf» e «12 Calculo.pdf», e assim por diante. A planilha-fonte continua como «Calculo.xlsx» (sem número).",
+    ],
+  },
+  {
     version: "0.9.8",
     date: "02/07/2026",
     items: [

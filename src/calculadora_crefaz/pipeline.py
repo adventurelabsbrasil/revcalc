@@ -24,13 +24,14 @@ from .capturas import (
 )
 from .config import (
     CAPTURA_IMG01_CONTRATO,
-    NOME_BACEN_PASTA_CLIENTE,
     NOME_IMAG_01,
     NOME_IMAG_02,
     master_run_log_sheet_tab,
     master_run_log_spreadsheet_id,
     master_run_log_url,
+    nome_series_temporais,
     nome_xlsx_saida,
+    numero_prefixo,
 )
 from .exceptions import (
     CalculadoraError,
@@ -323,6 +324,12 @@ def _processar_pasta(
     )
     emit(f"Contract file: {contrato_arquivo.name}")
 
+    # v0.9.8: sequência de nomes derivada do prefixo do contrato.
+    # Séries Temporais = contrato+1 · Cálculo PDF = contrato+2.
+    # Contrato sem prefixo numérico → nomes legados (fallback nos helpers).
+    seq_contrato = numero_prefixo(contrato_arquivo.name)
+    nome_series = nome_series_temporais(seq_contrato)
+
     emit("Downloading and parsing contract...")
     pdf_bytes = drive.baixar_pdf(service, contrato_arquivo.id)
     dados_contrato = parser_contrato.parsear_contrato(pdf_bytes)
@@ -361,12 +368,12 @@ def _processar_pasta(
         bacen_file_id_subido, _ = drive.subir_ou_sobrescrever(
             service,
             pasta.id,
-            NOME_BACEN_PASTA_CLIENTE,
+            nome_series,
             bacen_pdf_bytes,
             "application/pdf",
         )
         aviso(
-            f"BACEN PDF was missing — copied «{NOME_BACEN_PASTA_CLIENTE}» "
+            f"BACEN PDF was missing — copied «{nome_series}» "
             "from the central BACEN folder into this client folder."
         )
 
@@ -404,7 +411,7 @@ def _processar_pasta(
             incluir_png_pagina_inteira=False,
         )
 
-        pdf_nome = nome_pdf(quitado)
+        pdf_nome = nome_pdf(quitado, seq_contrato)
         emit(f"Uploading {pdf_nome}...")
         _, pdf_sobrescrito = drive.subir_ou_sobrescrever(
             service, pasta.id, pdf_nome, cap.pdf_bytes, "application/pdf"
@@ -475,7 +482,7 @@ def _processar_pasta(
         ArquivoGerado(nome_xlsx, "sobrescrito" if xlsx_sobrescrito else "novo"),
     ]
     if bacen_origem == "serie_do_bacen":
-        arquivos.append(ArquivoGerado(NOME_BACEN_PASTA_CLIENTE, "novo"))
+        arquivos.append(ArquivoGerado(nome_series, "novo"))
     else:
         arquivos.append(ArquivoGerado(bacen_na_pasta.name, "mantido"))
     arquivos.extend(arquivos_capturas)

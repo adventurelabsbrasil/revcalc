@@ -62,9 +62,12 @@ PREFIXOS_NAO_CONTRATO = (
     "kit procuração", "kit procuracao",
 )
 
-# BACEN na pasta da cliente
+# BACEN na pasta da cliente.
+# v0.9.8: o prefixo numérico deixou de ser fixo em "11" — passa a ser derivado
+# do número do contrato (Séries = contrato+1). Detecção tolera qualquer prefixo
+# NN (ou ausência dele), pra reconhecer o BACEN já presente em runs anteriores.
 REGEX_BACEN_PASTA_CLIENTE = re.compile(
-    r"^11\s+s[ée]ries\s+temporais.*\.pdf$", re.IGNORECASE
+    r"^(?:\d{2}\s+)?s[ée]ries\s+temporais.*\.pdf$", re.IGNORECASE
 )
 
 # BACEN em Série do Bacen segue padrão "MM-YYYY.pdf"
@@ -316,10 +319,40 @@ def nome_xlsx_saida(quitado: bool = False) -> str:
     return NOME_XLSX_SAIDA_QUITADO if quitado else NOME_XLSX_SAIDA
 
 
+# Fallback legado (contrato sem prefixo numérico): mantém o nome fixo histórico.
 NOME_BACEN_PASTA_CLIENTE = "11 Series Temporais.pdf"
 NOME_IMAG_01 = "imag.01.png"
 NOME_IMAG_02 = "imag.02.png"  # v0.7.0: recorte "Parcela c/ Taxa Média e Expurgo" da planilha
 NOME_CONTRATO_PADRAO = "09 Contrato Crefaz.pdf"
+
+# ─── Sequência de nomes derivada do contrato (v0.9.8) ───────────────────────
+# A Rose numera os arquivos da pasta em sequência. O contrato entra como
+# "NN Contrato Crefaz FULANO.pdf"; as saídas seguem consecutivas:
+#   Séries Temporais = NN+1   ·   Cálculo (PDF) = NN+2
+# Ex.: 09 Contrato… → 10 Series Temporais.pdf + 11 Calculo.pdf.
+# O XLSX-fonte permanece sem número ("Calculo.xlsx"), por decisão da Rose.
+REGEX_PREFIXO_NUM = re.compile(r"^\s*(\d{2})\s+")
+
+
+def numero_prefixo(nome: str) -> int | None:
+    """Extrai o prefixo numérico ``NN`` de um nome de arquivo (ex.: '09 Contrato…' → 9).
+
+    Retorna ``None`` se o nome não começa com dois dígitos + espaço — nesse caso
+    o chamador cai no fallback legado (nomes fixos).
+    """
+    m = REGEX_PREFIXO_NUM.match(nome)
+    return int(m.group(1)) if m else None
+
+
+def nome_series_temporais(seq_contrato: int | None) -> str:
+    """Nome do PDF BACEN (Séries Temporais) na pasta da cliente.
+
+    Consecutivo ao contrato: ``seq_contrato + 1``. Sem número no contrato →
+    fallback legado ``11 Series Temporais.pdf``.
+    """
+    if seq_contrato is None:
+        return NOME_BACEN_PASTA_CLIENTE
+    return f"{seq_contrato + 1:02d} Series Temporais.pdf"
 # NOME_LOG removido em v0.6.9: log txt deixou de ser salvo na pasta da cliente.
 # Audit trail vive na planilha central de runs (REVCALC_MASTER_RUN_LOG_SPREADSHEET_ID).
 

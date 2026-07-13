@@ -11,12 +11,12 @@ Desde 06/2026 roda **como web app** (a versão desktop `.exe` foi bloqueada pelo
 | Camada | URL / onde | Stack |
 |---|---|---|
 | **Front** | https://revcalc.adventurelabs.com.br | Next.js na **Vercel** (root `web/`) |
-| **Backend** | https://revcalc-api.adventurelabs.com.br | **FastAPI** em container no **xeon**, exposto via **Cloudflare Tunnel** (xeon é NAT, sem inbound) |
+| **Backend** | https://revcalc-api.adventurelabs.com.br | **FastAPI** em container **ativo/ativo** no **xeon** (primário) **+ beelink** (standby 24/7), cada host com uma **réplica do mesmo Cloudflare Tunnel** — a borda da CF balanceia e faz **failover automático** se um host cai (ambos NAT, sem inbound) |
 | **OAuth** | Google client **Web** (Workspace Rose, consent Internal) | secrets em Infisical `/clientes/03_ROSE` |
 
 O **engine de cálculo** (`src/calculadora_crefaz/`) é o mesmo do desktop, rodando inalterado dentro do container — `server/` só embrulha em HTTP (OAuth server-side + SSE de progresso). O `templates/Calculo.xlsx` é o **entregável jurídico CONGELADO**; o Python só preenche inputs, o Excel calcula.
 
-**Deploy:** backend `docker compose up -d --build` no xeon (`.env` renderizado do Infisical) + túnel `cloudflared` (systemd `--user`); front `vercel --prod` (rootDir `web`, env `NEXT_PUBLIC_API_BASE`). Detalhes em [`server/README.md`](server/README.md) e [`web/README.md`](web/README.md).
+**Deploy:** backend `docker compose up -d --build` **nos dois hosts** (xeon + beelink; `.env` idêntico do Infisical, mesmo `SESSION_SECRET`) + túnel `cloudflared` (systemd `--user`) em cada um; front `vercel --prod` (rootDir `web`, env `NEXT_PUBLIC_API_BASE`). ⚠️ Ao mergear mudança de engine/contrato, **rebuildar os dois backends** — senão os replicas servem versões diferentes (skew). Detalhes em [`server/README.md`](server/README.md) e [`web/README.md`](web/README.md).
 
 **Saída na pasta da cliente**: `Calculo.xlsx` · `NN Calculo.pdf` · `NN Series Temporais.pdf` (BACEN) · `imag.01.png` (Item II do contrato, recorte só da seção) · `imag.02.png` (bloco "Parcela com Taxa Média e Expurgo"). No fluxo **quitado** o cálculo vira `Calculo quitado.xlsx` · `NN Calculo quitado.pdf`.
 

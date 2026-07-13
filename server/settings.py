@@ -46,8 +46,10 @@ class Settings:
     redirect_uri: str          # https://api.revcalc.<dominio>/api/auth/callback
     frontend_origin: str       # https://revcalc.<dominio>  (origem do front, p/ CORS + redirect)
     session_secret: str        # segredo p/ assinar cookie de sessão + stream token
-    token_store_path: Path     # diretório do token store cifrado (volume)
+    token_store_path: Path     # diretório do token store cifrado (volume) — backend "disk"
     token_enc_key: str | None  # chave Fernet opcional; se ausente, derivada do session_secret
+    token_store_backend: str   # "disk" (volume local) ou "supabase" (estado compartilhado p/ HA ativo/ativo)
+    oauth_table: str           # tabela do token store no Supabase (backend "supabase")
     cookie_name: str
     cookie_domain: str | None  # ".adventurelabs.com.br" p/ cookie first-party entre subdomínios
     cookie_samesite: str       # "lax" (mesmo site/subdomínio) ou "none" (cross-site)
@@ -72,6 +74,13 @@ class Settings:
         return bool(self.supabase_url and self.supabase_anon_key)
 
     @property
+    def token_store_supabase(self) -> bool:
+        """Backend do token store = Supabase (exige URL + anon key configurados)."""
+        return self.token_store_backend == "supabase" and bool(
+            self.supabase_url and self.supabase_anon_key
+        )
+
+    @property
     def notify_enabled(self) -> bool:
         return bool(self.evolution_api_url and self.evolution_api_key and self.founder_notify_wa)
 
@@ -87,6 +96,8 @@ def get_settings() -> Settings:
         session_secret=_req("SESSION_SECRET"),
         token_store_path=Path(os.environ.get("TOKEN_STORE_PATH", "/data/tokens")),
         token_enc_key=os.environ.get("TOKEN_ENC_KEY") or None,
+        token_store_backend=(os.environ.get("TOKEN_STORE_BACKEND", "disk").strip().lower() or "disk"),
+        oauth_table=os.environ.get("REVCALC_OAUTH_TABLE", "revcalc_oauth_tokens").strip(),
         cookie_name=os.environ.get("COOKIE_NAME", "revcalc_session"),
         cookie_domain=(os.environ.get("COOKIE_DOMAIN") or "").strip() or None,
         cookie_samesite=os.environ.get("COOKIE_SAMESITE", "lax").strip().lower(),

@@ -29,7 +29,9 @@ Veja `.env.example` na raiz. Mínimo:
 | `OAUTH_REDIRECT_URI` | `https://api.revcalc.…/api/auth/callback` | = redirect cadastrado no Google |
 | `FRONTEND_ORIGIN` | `https://revcalc.adventurelabs.com.br` | origem do front (CORS + redirect pós-login) |
 | `SESSION_SECRET` | (32+ bytes aleatórios) | assina cookie/stream token; `openssl rand -hex 32` |
-| `TOKEN_STORE_PATH` | `/data/tokens` | volume do token store cifrado |
+| `TOKEN_STORE_BACKEND` | `disk` | `disk` (volume) ou `supabase` (estado compartilhado p/ HA ativo/ativo) |
+| `TOKEN_STORE_PATH` | `/data/tokens` | volume do token store cifrado (backend `disk`) |
+| `REVCALC_OAUTH_TABLE` | `revcalc_oauth_tokens` | tabela do token store (backend `supabase`) |
 | `COOKIE_DOMAIN` | `.adventurelabs.com.br` | cookie first-party entre `revcalc.` e `api.revcalc.` |
 | `COOKIE_SAMESITE` | `lax` | `lax` se front+api no mesmo domínio; `none` se cross-site |
 | `COOKIE_SECURE` | `true` | `false` só em dev http |
@@ -41,6 +43,18 @@ Veja `.env.example` na raiz. Mínimo:
 > `api.revcalc.adventurelabs.com.br` no xeon) e use `COOKIE_DOMAIN=.adventurelabs.com.br`
 > + `COOKIE_SAMESITE=lax`. Assim o cookie de sessão não é bloqueado como
 > "third-party". (O SSE não depende de cookie — usa um stream token assinado na URL.)
+
+> **Token store — `disk` vs `supabase` (HA ativo/ativo).** No backend `disk`, cada
+> host guarda os tokens no seu volume → num deploy multi-host (xeon + beelink) o
+> usuário re-loga quando a Cloudflare o roteia pro replica sem o token dele. O backend
+> `supabase` guarda o token (mesmo ciphertext Fernet) em `public.revcalc_oauth_tokens`
+> via PostgREST + anon key (server-side), compartilhado entre os hosts → sessão
+> sobrevive ao failover. **Só ciphertext vai pro banco; a chave deriva do
+> `SESSION_SECRET`, que DEVE ser idêntico em todos os hosts.** RLS escopada só a essa
+> tabela (`db/revcalc_oauth_tokens.sql`); a service_role **não** vive no container.
+> Migração disco→Supabase: `scripts/migrate_tokens_to_supabase.py` (roda 1x, não
+> decifra). Rollout: deploy com `disk` → migrar → flip `TOKEN_STORE_BACKEND=supabase`
+> nos dois hosts. Ver adventure-labs#1188.
 
 ## Deploy no xeon
 

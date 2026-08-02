@@ -1,6 +1,6 @@
 # Calculadora de Ação Crefaz
 
-**Versão atual:** `v0.9.8` · **Cliente:** Rose Portal Advocacia  
+**Versão atual:** `v0.9.10` · **Cliente:** Rose Portal Advocacia  
 
 Automatiza o cálculo de revisão de contratos **Crefaz**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica. Aceita **vários clientes em lote** e **pula automaticamente** contratos que já têm cálculo.
 

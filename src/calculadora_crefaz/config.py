@@ -98,6 +98,11 @@ MARCADOR_ITEM_II_FIM = re.compile(
     r"III\.\s*CUSTO\s+EFETIVO\s+TOTAL", re.IGNORECASE
 )
 
+# Separador tolerante a marcador de nota de rodapé (superscript ¹²³/⁰-⁹, dígito
+# ASCII pós-NFKC, ou símbolo *†‡) além de espaço/quebra de linha. Usado entre
+# "Juros" e "Mensal"/"Anual" nos contratos Crefaz novos.
+SEP_NOTA_RODAPE = r"[\s¹²³⁰-⁹\d*†‡]*"
+
 # Regex para campos do Item II (tolerância a espaços e quebras de linha)
 REGEX_ITEM_II = {
     "data_emissao": re.compile(r"Data\s+de\s+Emiss[ãa]o:\s*(\d{2}/\d{2}/\d{4})"),
@@ -108,8 +113,17 @@ REGEX_ITEM_II = {
     "valor_emprestimo": re.compile(r"Valor\s+do\s+Empr[ée]stimo:\s*R\$\s*([\d.,]+)"),
     "valor_total_contratado": re.compile(r"Valor\s+Total\s+Contratado:\s*R\$\s*([\d.,]+)"),
     "valor_prestacao": re.compile(r"Valor\s+da\s+Presta[çc][ãa]o:\s*R\$\s*([\d.,]+)"),
-    "taxa_mensal": re.compile(r"Taxa\s+de\s+Juros\s+Mensal:\s*([\d,]+)\s*%"),
-    "taxa_anual": re.compile(r"Taxa\s+de\s+Juros\s+Anual:\s*([\d,]+)\s*%"),
+    # Contratos Crefaz novos (a partir de 2026-08) trazem um marcador de nota de
+    # rodapé entre "Juros" e "Mensal"/"Anual" — ex.: "Taxa de Juros¹ Mensal:". O
+    # separador tolera superscripts (¹²³/⁰-⁹), dígito ASCII (caso o extrator
+    # normalize o superscript via NFKC → "1") e símbolos de nota (*†‡), além do
+    # espaço normal. Sem isso o \s+ antigo não casava e a extração falhava.
+    "taxa_mensal": re.compile(
+        rf"Taxa\s+de\s+Juros{SEP_NOTA_RODAPE}Mensal:\s*([\d,]+)\s*%"
+    ),
+    "taxa_anual": re.compile(
+        rf"Taxa\s+de\s+Juros{SEP_NOTA_RODAPE}Anual:\s*([\d,]+)\s*%"
+    ),
     "tributos_iof": re.compile(r"Tributos/IOF:\s*R\$\s*([\d.,]+)"),
     "tarifas": re.compile(r"Tarifas:\s*R\$\s*([\d.,]+)"),
 }

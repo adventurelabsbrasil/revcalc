@@ -10,6 +10,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.9.10",
+    date: "02/08/2026",
+    items: [
+      "Contratos Crefaz no formato novo (com a marca de nota de rodapé em «Taxa de Juros¹ Mensal:») voltam a ser calculados normalmente — a leitura da taxa de juros deixou de falhar por causa do «¹» ao lado do rótulo.",
+    ],
+  },
+  {
     version: "0.9.9",
     date: "08/07/2026",
     items: [

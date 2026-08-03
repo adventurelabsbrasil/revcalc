@@ -209,6 +209,34 @@ class TestParsearContratoSintetico:
         assert d.taxa_anual == pytest.approx(3.9373)
         assert d.taxa_mensal != d.taxa_anual
 
+    def test_taxa_com_marcador_nota_superscript(self, monkeypatch):
+        """Contratos novos (2026-08): 'Taxa de Juros¹ Mensal:' com superscript.
+
+        Feedback do cliente (2026-08): o ¹ entre 'Juros' e 'Mensal' quebrava o
+        \\s+ antigo e a extração falhava. O separador tolerante deve casar.
+        """
+        contrato = CONTRATO_SINTETICO_MARLI.replace(
+            "Taxa de Juros Mensal: 14,49%", "Taxa de Juros¹ Mensal: 14,49%"
+        ).replace(
+            "Taxa de Juros Anual: 393,73%", "Taxa de Juros² Anual: 393,73%"
+        )
+        self._patch_pdf(monkeypatch, contrato)
+        d = parsear_contrato(Path("fake.pdf"))
+        assert d.taxa_mensal == pytest.approx(0.1449)
+        assert d.taxa_anual == pytest.approx(3.9373)
+
+    def test_taxa_com_marcador_nota_digito_nfkc(self, monkeypatch):
+        """Variante em que o extrator normaliza o superscript p/ dígito ASCII."""
+        contrato = CONTRATO_SINTETICO_MARLI.replace(
+            "Taxa de Juros Mensal: 14,49%", "Taxa de Juros1 Mensal: 14,49%"
+        ).replace(
+            "Taxa de Juros Anual: 393,73%", "Taxa de Juros2 Anual: 393,73%"
+        )
+        self._patch_pdf(monkeypatch, contrato)
+        d = parsear_contrato(Path("fake.pdf"))
+        assert d.taxa_mensal == pytest.approx(0.1449)
+        assert d.taxa_anual == pytest.approx(3.9373)
+
 
 # ─── Testes E2E com PDFs reais (skip se ausentes) ───────────────────────────
 

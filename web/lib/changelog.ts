@@ -10,6 +10,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.9.13",
+    date: "24/09/2026",
+    items: [
+      "Corrigida a localização dos PDFs BACEN mensais na pasta central do Drive.",
+    ],
+  },
+  {
     version: "0.9.12",
     date: "24/09/2026",
     items: [

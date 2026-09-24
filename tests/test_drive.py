@@ -147,7 +147,7 @@ def test_localiza_pdf_bacen_novo_na_pasta_de_series_novas():
 def test_localiza_pdf_bacen_mensal_na_pasta_de_series_novas():
     service = _mock_service_drive(
         {
-            PASTA_BACEN_NOV_2025_ID: [
+            PASTA_BACEN_ID: [
                 {"id": "julho", "name": "07-2026.pdf", "mimeType": "application/pdf"},
             ]
         }

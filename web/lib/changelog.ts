@@ -10,6 +10,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.9.11",
+    date: "24/09/2026",
+    items: [
+      "A consulta das taxas BACEN passou a aceitar a migração das séries SGS ocorrida a partir de novembro de 2025.",
+      "A leitura dos PDFs BACEN também funciona quando o cabeçalho traz apenas os códigos das séries, sem os rótulos de unidade.",
+    ],
+  },
+  {
     version: "0.9.10",
     date: "02/08/2026",
     items: [

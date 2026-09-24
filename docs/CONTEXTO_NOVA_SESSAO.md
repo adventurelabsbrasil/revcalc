@@ -53,7 +53,7 @@ Contexto de conta da Rose mais amplo:
 3. **Auth:** OAuth Workspace desktop flow individual de cada usuário (sem service account, sem domain delegation).
 4. **Histórico:** `12 Log.txt` na pasta da cliente (sem Supabase no MVP).
 5. **Matching de contrato:** apenas `NN Contrato Crefaz.pdf` ou `Contrato Crefaz.pdf` (fluxo humano renomeia antes; padrão antigo fora).
-6. **BACEN:** prioridade dupla — pasta da cliente primeiro, fallback `Série do Bacen/MM-YYYY.pdf`. **Mês de referência é o do 1º Vencimento, não da Data de Emissão.**
+6. **BACEN:** prioridade dupla — pasta da cliente primeiro, fallback `Série do Bacen/MM-YYYY.pdf`. **Mês de referência é o da Data de Emissão, não do 1º Vencimento.**
 7. **Pasta da cliente:** busca em 2 níveis (raiz + subpastas de estado).
 
 ## Setups pendentes antes do agente começar
@@ -72,12 +72,12 @@ Dois clientes-fixture já mapeados pra testar:
 
 **Adriano Luis Calistro Lourenco** (caso legado, pasta na raiz `EMPRESTIMO DE ENERGIA/`):
 - Cédula 3867296, emissão 22/09/2025, prazo 12, valor R$ 1.000, taxa 18,77%, IOF R$ 25,10
-- 1º vencimento 27/10/2025 → BACEN `10-2025`
+- emissão 22/09/2025 → BACEN `09-2025`
 - Aba esperada: `PRICE 24X`
 
 **Marlí Suelí Berger Dambrósio** (caso atual, dentro de `10. RIO GRANDE DO SUL/`):
 - Cédula 4095068, emissão 29/12/2025, prazo 18, valor R$ 3.500, taxa 14,49%, IOF R$ 104,99
-- 1º vencimento 02/02/2026 → BACEN `02-2026` (taxa 6,47% / `0.0647`)
+- emissão 29/12/2025 → BACEN `12-2025` (competência definida pela emissão)
 - Pasta dela já tem `11 Series Temporais.pdf` — sistema deve usar esse, não copiar do Série do Bacen.
 - Aba esperada: `PRICE 24X` (18 ≤ 24)
 

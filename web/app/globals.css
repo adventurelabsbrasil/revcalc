@@ -148,6 +148,12 @@ button:disabled {
   color: #ffc9c9;
 }
 
+.banner.aviso {
+  background: rgba(255, 193, 7, 0.12);
+  border: 1px solid #ffc107;
+  color: #ffe8a1;
+}
+
 .banner.ok {
   background: rgba(81, 207, 102, 0.12);
   border: 1px solid var(--ok);

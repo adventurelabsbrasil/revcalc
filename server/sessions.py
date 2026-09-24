@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -23,11 +24,19 @@ from calculadora_crefaz.pipeline import (
     ResultadoPipeline,
     executar_lote,
 )
+from calculadora_crefaz.exceptions import BacenFallbackRecusado
 
 logger = logging.getLogger(__name__)
 
 # Evento sentinela que fecha o gerador SSE.
 FIM = {"type": "_end"}
+
+
+@dataclass
+class PendingConfirmation:
+    id: str
+    event: threading.Event = field(default_factory=threading.Event)
+    accepted: Optional[bool] = None
 
 
 def _resultado_para_dict(res: ResultadoPipeline) -> dict[str, Any]:
@@ -68,6 +77,8 @@ class Run:
     email: str
     queue: "asyncio.Queue[dict]" = field(default_factory=asyncio.Queue)
     future: Optional[asyncio.Future] = None
+    pending_confirmation: Optional[PendingConfirmation] = None
+    confirmation_lock: threading.Lock = field(default_factory=threading.Lock)
 
 
 class RunManager:
@@ -86,6 +97,18 @@ class RunManager:
 
     def remover(self, run_id: str) -> None:
         self._runs.pop(run_id, None)
+
+    def responder_confirmacao(self, run_id: str, confirmation_id: str, accepted: bool) -> bool:
+        run = self.obter(run_id)
+        if not run:
+            return False
+        with run.confirmation_lock:
+            pending = run.pending_confirmation
+            if not pending or pending.id != confirmation_id or pending.event.is_set():
+                return False
+            pending.accepted = accepted
+            pending.event.set()
+            return True
 
     def iniciar(
         self,
@@ -109,6 +132,16 @@ class RunManager:
         def aviso_cb(msg: str) -> None:
             emit("status", level="aviso", message=msg)
 
+        def confirmar_bacen(payload: dict) -> bool:
+            pending = PendingConfirmation(id=uuid.uuid4().hex)
+            with run.confirmation_lock:
+                run.pending_confirmation = pending
+            emit("bacen_confirmation_required", confirmation_id=pending.id, **payload)
+            pending.event.wait()
+            with run.confirmation_lock:
+                run.pending_confirmation = None
+            return pending.accepted is True
+
         def trabalho() -> None:
             try:
                 res = executar_lote(
@@ -116,8 +149,11 @@ class RunManager:
                     sessao,
                     status=status_cb,
                     aviso=aviso_cb,
+                    confirmar_bacen=confirmar_bacen,
                 )
                 emit("done", result=_lote_para_dict(res))
+            except BacenFallbackRecusado as e:
+                emit("cancelled", error=str(e))
             except Exception as e:  # noqa: BLE001 — erro inesperado vira evento, não crash
                 logger.exception("Run %s falhou inesperadamente", run.id)
                 emit("error", error=f"Erro inesperado: {e}", kind="Exception")

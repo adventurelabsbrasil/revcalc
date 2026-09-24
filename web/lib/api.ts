@@ -12,6 +12,14 @@ export interface RunStart {
   events_url: string;
 }
 
+export interface BacenConfirmation {
+  runId: string;
+  confirmationId: string;
+  competencia: string;
+  nomePdfLocal: string;
+  mensagem: string;
+}
+
 export interface ArquivoGerado {
   nome: string;
   status: string;
@@ -115,6 +123,19 @@ export async function startRun(nomes: string[]): Promise<StartResponse> {
 
 export function fullEventsUrl(eventsPath: string): string {
   return `${API_BASE}${eventsPath}`;
+}
+
+export async function answerBacenConfirmation(
+  runId: string,
+  confirmationId: string,
+  accepted: boolean,
+): Promise<boolean> {
+  const action = accepted ? "accept" : "cancel";
+  const r = await fetch(
+    `${API_BASE}/api/run/${runId}/confirmations/${confirmationId}/${action}`,
+    { method: "POST", credentials: "include" },
+  );
+  return r.ok;
 }
 
 // ─── Feedback ──────────────────────────────────────────────────────────────

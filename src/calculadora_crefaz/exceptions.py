@@ -84,6 +84,10 @@ class BacenParseError(CalculadoraError):
         super().__init__(msg)
 
 
+class BacenFallbackRecusado(CalculadoraError):
+    """Usuário recusou usar o PDF BACEN central após divergência local."""
+
+
 class PrazoForaDoTemplate(CalculadoraError):
     """Prazo > 60 — template não suporta."""
 

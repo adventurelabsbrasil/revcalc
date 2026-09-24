@@ -18,7 +18,7 @@ Você vai construir o **MVP da Calculadora de Ação Crefaz** para a Rose Portal
 
 ## O que o sistema faz (escopo MVP)
 
-Recebe nome do cliente → encontra a pasta no Drive → lê o contrato Crefaz em PDF → extrai dados do Item II → calcula parcelas pagas → busca taxa BACEN do mês do 1º vencimento → preenche a planilha de cálculo modelo via openpyxl → salva o XLSX preenchido na pasta da cliente no Drive → escreve um log.txt naquela pasta como registro do que foi feito.
+Recebe nome do cliente → encontra a pasta no Drive → lê o contrato Crefaz em PDF → extrai dados do Item II → calcula parcelas pagas → busca taxa BACEN do mês da data de emissão → preenche a planilha de cálculo modelo via openpyxl → salva o XLSX preenchido na pasta da cliente no Drive → escreve um log.txt naquela pasta como registro do que foi feito.
 
 **Fora do escopo desta versão:**
 - Capturas/prints da planilha (xlwings + Excel) — TODO v0.6.
@@ -68,7 +68,7 @@ Aba `PRICE 24X` como referência (outras 3 abas têm offset +1 linha, tratar via
 | I15 | Quantidade parcelas | Item II "Prazo" |
 | I16 | Valor parcela | Item II "Valor da Prestação" |
 | I17 | Taxa pactuada | Item II **"Taxa de Juros Mensal"** (5ª linha, NÃO a anual). `18,77%` → `0.1877` |
-| AP15 | Taxa BACEN | Campo 25464 do PDF do **mês do 1º Vencimento**. `5,58` → `0.0558` |
+| AP15 | Taxa BACEN | Campo 25464 do PDF do **mês da Data de Emissão**. `5,58` → `0.0558` |
 | BL8 | Parcelas pagas | `max(0, min(prazo, meses_entre(hoje, 1º_vencimento)))` |
 
 Demais campos (I8, I10, I11, I12) deixar `0` se não vierem no contrato.
@@ -375,7 +375,7 @@ XLSX gerado deve ter:
 - C1 = `"CÁLCULOS DA OPERAÇÃO Nº 3867296 - CLIENTE: ADRIANO LUIS CALISTRO LOURENCO x BANCO CREFAZ"`
 - D3 = 22/09/2025
 - I7 = 1000.00, I9 = 0.00, I13 = 25.10, I15 = 12, I16 = 226.79, I17 = 0.1877
-- AP15 = taxa BACEN de **outubro/2025** (1º venc 27/10/2025)
+- AP15 = taxa BACEN da competência da **Data de Emissão**
 - BL8 = parcelas pagas calculadas com `date.today()`
 - Apenas 1 aba (`PRICE 24X`)
 

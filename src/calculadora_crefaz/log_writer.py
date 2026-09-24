@@ -188,7 +188,7 @@ Aba do template: {dados.aba_template}
 BACEN
 -----
 Origem: {_bacen_origem_humana(dados.bacen_origem)}
-Mês de referência (1º vencimento): {dados.bacen_mes:02d}/{dados.bacen_ano}
+Mês de referência BACEN (data de emissão): {dados.bacen_mes:02d}/{dados.bacen_ano}
 Série anual: {dados.bacen_codigo_anual}
 Série mensal: {dados.bacen_codigo_mensal}
 Taxa mensal BACEN: {_fmt_pct(pl.taxa_bacen)}

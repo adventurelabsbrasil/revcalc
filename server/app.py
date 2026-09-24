@@ -229,6 +229,26 @@ def create_app() -> FastAPI:
             }
         )
 
+    @app.post("/api/run/{run_id}/confirmations/{confirmation_id}/accept")
+    async def accept_bacen_confirmation(run_id: str, confirmation_id: str, request: Request) -> Response:
+        email = _email_da_sessao(request)
+        run_obj = manager.obter(run_id)
+        if not email or not run_obj or run_obj.email != email:
+            return JSONResponse({"error": "run_inexistente"}, status_code=404)
+        if not manager.responder_confirmacao(run_id, confirmation_id, True):
+            return JSONResponse({"error": "confirmacao_invalida"}, status_code=409)
+        return JSONResponse({"ok": True})
+
+    @app.post("/api/run/{run_id}/confirmations/{confirmation_id}/cancel")
+    async def cancel_bacen_confirmation(run_id: str, confirmation_id: str, request: Request) -> Response:
+        email = _email_da_sessao(request)
+        run_obj = manager.obter(run_id)
+        if not email or not run_obj or run_obj.email != email:
+            return JSONResponse({"error": "run_inexistente"}, status_code=404)
+        if not manager.responder_confirmacao(run_id, confirmation_id, False):
+            return JSONResponse({"error": "confirmacao_invalida"}, status_code=409)
+        return JSONResponse({"ok": True})
+
     @app.get("/api/run/{run_id}/events")
     async def run_events(run_id: str, t: str = "") -> Response:
         payload = auth_web.ler_stream_token(t)

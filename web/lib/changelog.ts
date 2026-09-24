@@ -10,6 +10,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.9.14",
+    date: "24/09/2026",
+    items: [
+      "A taxa BACEN agora usa o mês da data de emissão do contrato, e não o mês do primeiro vencimento.",
+      "Quando o PDF BACEN correto não está na pasta da cliente, o sistema pede confirmação explícita antes de buscá-lo na pasta central.",
+    ],
+  },
+  {
     version: "0.9.13",
     date: "24/09/2026",
     items: [

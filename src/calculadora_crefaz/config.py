@@ -3,6 +3,7 @@
 import os
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 # ─── Drive ──────────────────────────────────────────────────────────────────
@@ -12,6 +13,19 @@ PASTA_MAE_ID = os.environ.get("REVCALC_PASTA_MAE_ID", "1OciPZU1-C54kRk7C8QWyIGUb
 
 # Pasta "Série do Bacen" dentro de "EMPRESTIMO DE ENERGIA/03. MODELOS/"
 PASTA_BACEN_ID = os.environ.get("REVCALC_PASTA_BACEN_ID", "1w8aWxOURJewINVPlyGKlitEE-EpStWUe")
+
+# A partir de 01/11/2025 o BCB passou a disponibilizar a série equivalente
+# sem garantias reais em um PDF separado, com códigos SGS novos.
+PASTA_BACEN_NOV_2025_ID = os.environ.get(
+    "REVCALC_PASTA_BACEN_NOV_2025_ID",
+    "1kM-Z46EaLcUt0Vx9W95376aWYw8bhI4a",
+)
+NOME_ARQUIVO_BACEN_NOV_2025 = "SGS - Sistema Gerenciador de Séries Temporais.pdf"
+DATA_MUDANCA_SERIES_BACEN = date(2025, 11, 1)
+CODIGO_BACEN_ANUAL_ANTIGO = 20742
+CODIGO_BACEN_MENSAL_ANTIGO = 25464
+CODIGO_BACEN_ANUAL_NOV_2025 = 29974
+CODIGO_BACEN_MENSAL_NOV_2025 = 29977
 
 # Subpastas de estado seguem o padrão "NN. NOME DO ESTADO"
 REGEX_PASTA_ESTADO = re.compile(r"^\d{2}\.\s+")

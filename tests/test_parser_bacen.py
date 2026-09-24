@@ -35,7 +35,7 @@ TEXTO_BACEN_FEV_2026 = """\
 Sistema Gerenciador de Séries Temporais - SGS - Banco Central do Brasil
 Código 25464 - Taxa média de juros das operações de crédito - PJ
 
-Período        Taxa anual    Taxa mensal
+Data mês/AAAA  29974 % a.a.  29977 % a.m.
 jan/2026       95,12         5,73
 fev/2026       80,15         6,47
 mar/2026       82,33         5,12
@@ -63,13 +63,13 @@ def test_extrair_ano_errado_lanca_erro():
 
 
 def test_case_insensitive_mes():
-    texto = "FEV/2026   80,15   6,47\n"
+    texto = "Data mês/AAAA 29974 % a.a. 29977 % a.m.\nFEV/2026   80,15   6,47\n"
     assert extrair_taxa_mes(texto, 2, 2026) == pytest.approx(0.0647)
 
 
 def test_pega_mensal_nao_anual():
     """Confirma que retornamos o segundo número (mensal), não o primeiro (anual)."""
-    texto = "fev/2026   80,15   6,47\n"
+    texto = "Data mês/AAAA 29974 % a.a. 29977 % a.m.\nfev/2026   80,15   6,47\n"
     taxa = extrair_taxa_mes(texto, 2, 2026)
     assert taxa == pytest.approx(0.0647)
     assert taxa != pytest.approx(0.8015)
@@ -78,6 +78,7 @@ def test_pega_mensal_nao_anual():
 def test_todos_os_meses():
     """Garante que todas as abreviações em pt-BR são reconhecidas."""
     texto_todos = """\
+Data mês/AAAA 29974 % a.a. 29977 % a.m.
 jan/2025   10,00   1,00
 fev/2025   10,00   2,00
 mar/2025   10,00   3,00
@@ -91,9 +92,32 @@ out/2025   10,00   10,00
 nov/2025   10,00   11,00
 dez/2025   10,00   12,00
 """
-    for mes_idx in range(1, 13):
-        taxa = extrair_taxa_mes(texto_todos, mes_idx, 2025)
+    for mes_idx in range(1, 11):
+        # Competências de 2025 antes de novembro usam as séries antigas.
+        texto = texto_todos.replace("29974", "20742").replace("29977", "25464")
+        taxa = extrair_taxa_mes(texto, mes_idx, 2025)
         assert taxa == pytest.approx(mes_idx / 100.0), f"Falhou para mês {mes_idx}"
+
+
+def test_novas_series_a_partir_de_novembro_2025():
+    texto = """\
+Data mês/AAAA 29974 % a.a. 29977 % a.m.
+nov/2025   132,70   7,29
+dez/2025   137,76   7,48
+"""
+    assert extrair_taxa_mes(texto, 11, 2025) == pytest.approx(0.0729)
+
+
+def test_rejeita_series_antigas_para_competencia_nova():
+    texto = "Data mês/AAAA 20742 % a.a. 25464 % a.m.\nnov/2025 111,48 6,44\n"
+    with pytest.raises(BacenParseError, match="esperadas 29974/29977"):
+        extrair_taxa_mes(texto, 11, 2025)
+
+
+def test_rejeita_series_novas_para_competencia_antiga():
+    texto = "Data mês/AAAA 29974 % a.a. 29977 % a.m.\nout/2025 111,48 6,44\n"
+    with pytest.raises(BacenParseError, match="esperadas 20742/25464"):
+        extrair_taxa_mes(texto, 10, 2025)
 
 
 # ─── E2E com PDFs reais ─────────────────────────────────────────────────────

@@ -34,6 +34,7 @@ from .config import (
     numero_prefixo,
 )
 from .exceptions import (
+    BacenParseError,
     CalculadoraError,
     CalculoJaExiste,
     ContratoNaoEncontrado,
@@ -350,8 +351,8 @@ def _processar_pasta(
         f"| paid installments to date: {parcelas} | sheet: {aba}"
     )
 
-    bacen_mes = dados_contrato.data_emissao.month
-    bacen_ano = dados_contrato.data_emissao.year
+    bacen_mes = dados_contrato.primeiro_vencimento.month
+    bacen_ano = dados_contrato.primeiro_vencimento.year
 
     bacen_na_pasta = drive.localizar_bacen_na_pasta(service, pasta.id)
     bacen_file_id_subido: Optional[str] = None
@@ -360,7 +361,7 @@ def _processar_pasta(
         bacen_pdf_bytes = drive.baixar_pdf(service, bacen_na_pasta.id)
         bacen_origem = "pasta_cliente"
     else:
-        emit(f"BACEN not in folder — fetching {bacen_mes:02d}-{bacen_ano} from central repo...")
+        emit(f"BACEN not in folder — fetching reference PDF for {bacen_mes:02d}-{bacen_ano} from central repo...")
         bacen_repo = drive.localizar_bacen_no_repositorio(service, bacen_mes, bacen_ano)
         bacen_pdf_bytes = drive.baixar_pdf(service, bacen_repo.id)
         bacen_origem = "serie_do_bacen"
@@ -377,10 +378,41 @@ def _processar_pasta(
             "from the central BACEN folder into this client folder."
         )
 
-    taxa_bacen = parser_bacen.extrair_taxa_mes(
-        parser_bacen._extrair_texto_pdf(bacen_pdf_bytes), bacen_mes, bacen_ano
+    bacen_texto = parser_bacen._extrair_texto_pdf(bacen_pdf_bytes)
+    try:
+        dados_taxa_bacen = parser_bacen.extrair_dados_mes(
+            bacen_texto, bacen_mes, bacen_ano
+        )
+    except BacenParseError as exc:
+        # A pasta da cliente pode conter um PDF antigo (20742/25464) para uma
+        # competência já atendida pelas séries novas (29974/29977). Nesse caso,
+        # buscar a fonte compatível no repositório central evita usar a taxa errada.
+        if not bacen_na_pasta:
+            raise
+        emit(f"Client BACEN PDF is incompatible with {bacen_mes:02d}/{bacen_ano} ({exc}); fetching the compatible repository PDF...")
+        bacen_repo = drive.localizar_bacen_no_repositorio(service, bacen_mes, bacen_ano)
+        bacen_pdf_bytes = drive.baixar_pdf(service, bacen_repo.id)
+        bacen_origem = "serie_do_bacen"
+        bacen_file_id_subido, _ = drive.subir_ou_sobrescrever(
+            service,
+            pasta.id,
+            nome_series,
+            bacen_pdf_bytes,
+            "application/pdf",
+        )
+        bacen_texto = parser_bacen._extrair_texto_pdf(bacen_pdf_bytes)
+        dados_taxa_bacen = parser_bacen.extrair_dados_mes(
+            bacen_texto, bacen_mes, bacen_ano
+        )
+        aviso(
+            f"BACEN PDF in the client folder was incompatible — replaced «{nome_series}» "
+            "with the compatible series from the central BACEN folder."
+        )
+    taxa_bacen = dados_taxa_bacen.taxa_mensal
+    emit(
+        f"BACEN rate for {bacen_mes:02d}/{bacen_ano}: {taxa_bacen * 100:.2f}% "
+        f"(series {dados_taxa_bacen.codigo_anual}/{dados_taxa_bacen.codigo_mensal})"
     )
-    emit(f"BACEN rate for {bacen_mes:02d}/{bacen_ano}: {taxa_bacen * 100:.2f}%")
 
     emit("Building filled workbook...")
     dados_planilha = DadosPlanilha(
@@ -515,7 +547,10 @@ def _processar_pasta(
                 rate_contract_pct=dados_contrato.taxa_mensal * 100,
                 rate_bacen_pct=taxa_bacen * 100,
                 bacen_ref=f"{bacen_mes:02d}/{bacen_ano}",
-                bacen_source=bacen_origem,
+                bacen_source=(
+                    f"{bacen_origem} "
+                    f"(series {dados_taxa_bacen.codigo_anual}/{dados_taxa_bacen.codigo_mensal})"
+                ),
                 contract_pdf=contrato_arquivo.name,
                 revcalc_version=__version__,
             )

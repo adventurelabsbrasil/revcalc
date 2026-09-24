@@ -6,6 +6,7 @@ import io
 import logging
 import re
 from dataclasses import dataclass, field
+from datetime import date
 from typing import Any, Optional
 
 from googleapiclient.errors import HttpError
@@ -14,8 +15,11 @@ from rapidfuzz import process as fuzz_process
 from unidecode import unidecode
 
 from .config import (
+    DATA_MUDANCA_SERIES_BACEN,
     NOME_BACEN_PASTA_CLIENTE,
+    NOME_ARQUIVO_BACEN_NOV_2025,
     PASTA_BACEN_ID,
+    PASTA_BACEN_NOV_2025_ID,
     PASTA_MAE_ID,
     PREFIXOS_NAO_CONTRATO,
     REGEX_BACEN_PASTA_CLIENTE,
@@ -277,19 +281,27 @@ def localizar_bacen_na_pasta(service, pasta_id: str) -> Optional[ArquivoDrive]:
 
 
 def localizar_bacen_no_repositorio(service, mes: int, ano: int) -> ArquivoDrive:
-    """Procura `MM-YYYY.pdf` na pasta Série do Bacen.
+    """Procura o PDF BACEN correto para a competência no Drive.
+
+    Até 10/2025, os PDFs mensais da pasta principal usam as séries 20742/25464.
+    Desde 11/2025, o BCB disponibiliza a série equivalente sem garantias reais
+    na pasta separada ``29977 e 29974``.
 
     Lança BacenNaoEncontrado se não existir nem na pasta cliente nem aqui.
     """
-    arquivos = _listar_filhos(service, PASTA_BACEN_ID, MIME_PDF)
-    nome_alvo = nome_arquivo_bacen(mes, ano)
+    if date(ano, mes, 1) >= DATA_MUDANCA_SERIES_BACEN:
+        arquivos = _listar_filhos(service, PASTA_BACEN_NOV_2025_ID, MIME_PDF)
+        nome_alvo = NOME_ARQUIVO_BACEN_NOV_2025
+    else:
+        arquivos = _listar_filhos(service, PASTA_BACEN_ID, MIME_PDF)
+        nome_alvo = nome_arquivo_bacen(mes, ano)
     for a in arquivos:
         if REGEX_COPIA.match(a["name"]):
             continue
         if a["name"] == nome_alvo:
             return ArquivoDrive(id=a["id"], name=a["name"], mime_type=a["mimeType"])
     raise BacenNaoEncontrado(
-        f"PDF BACEN '{nome_alvo}' não encontrado na pasta Série do Bacen "
+        f"PDF BACEN '{nome_alvo}' não encontrado no repositório do Drive "
         "e nem na pasta da operação. Peça ao administrador do Drive para disponibilizar o PDF BACEN desse mês."
     )
 

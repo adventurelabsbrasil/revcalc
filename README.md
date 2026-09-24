@@ -95,7 +95,7 @@ Endpoints: `GET /api/feedback/config` (`{enabled}`) · `POST /api/feedback` (ses
 1. Login **Google OAuth** (contas autorizadas na configuração do app).
 2. Busca da pasta da cliente em `EMPRESTIMO DE ENERGIA/<UF>/<NOME>/` no Drive.
 3. Leitura do **`NN Contrato Crefaz FULANO.pdf`**, parsing do Item II e dos dados financeiros. O número `NN` do contrato define a sequência das saídas (Séries = `NN+1`, Cálculo = `NN+2`).
-4. Uso da taxa **BACEN** (PDF **`{NN+1} Series Temporais.pdf`** na pasta ou cópia do repositório central da Rose quando faltar).
+4. Uso da taxa **BACEN** (PDF **`{NN+1} Series Temporais.pdf`** na pasta ou cópia do repositório central da Rose quando faltar). A referência é o mês/ano do **1º vencimento**. O parser valida a troca de séries do SGS: até `10/2025`, anual `20742` + mensal `25464`; desde `11/2025`, anual `29974` + mensal `29977`.
 5. Geração do **`10 Cálculo …xlsx`**, **`12 Log.txt`** (append) e arquivos **`13 Print …`** (planilha + blocos regionais + trechos dos PDFs).
 
 **Tempo médio:** cerca de 30–60 segundos por execução (rede + tamanho do PDF).

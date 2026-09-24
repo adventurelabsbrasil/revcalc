@@ -135,13 +135,12 @@ parcelas_pagas = max(0, min(prazo, meses_entre(date.today(), primeiro_vencimento
 
 ### 8. Localizar BACEN — prioridade dupla
 - **Prioridade 1:** `11 Series Temporais.pdf` ou `11 Séries Temporais.pdf` na pasta da cliente. `bacen_origem = "pasta_cliente"`.
-- **Prioridade 2:** `{MM}-{YYYY}.pdf` na pasta `Série do Bacen` (mês do **1º Vencimento**). `bacen_origem = "serie_do_bacen"`.
+- **Prioridade 2:** até `10/2025`, `{MM}-{YYYY}.pdf` na pasta `Série do Bacen`; desde `11/2025`, o PDF `SGS - Sistema Gerenciador de Séries Temporais.pdf` na pasta `29977 e 29974` (sempre para o mês do **1º Vencimento**). `bacen_origem = "serie_do_bacen"`.
 - Não encontrado → erro mencionando equipe da Rose.
 - Ignorar `Cópia de *.pdf`.
 
 ### 9. Extrair taxa do BACEN
-Padrão do PDF: `{mês}/{ano}    {valor_anual}    {valor_mensal}`.
-Regex: `(?:jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)/\d{4}\s+([\d,]+)\s+([\d,]+)` → grupo 2. Converter `5,58` → `0.0558`.
+O cabeçalho do PDF também deve confirmar os códigos SGS: até `10/2025`, `20742 % a.a.` e `25464 % a.m.`; desde `11/2025`, `29974 % a.a.` e `29977 % a.m.`. Só então localizar a linha `{mês}/{ano}` e converter o valor mensal, por exemplo `5,58` → `0.0558`.
 
 ### 10. Decidir aba do template
 | Prazo | Aba |

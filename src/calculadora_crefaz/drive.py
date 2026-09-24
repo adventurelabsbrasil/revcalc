@@ -291,15 +291,18 @@ def localizar_bacen_no_repositorio(service, mes: int, ano: int) -> ArquivoDrive:
     """
     if date(ano, mes, 1) >= DATA_MUDANCA_SERIES_BACEN:
         arquivos = _listar_filhos(service, PASTA_BACEN_NOV_2025_ID, MIME_PDF)
-        nome_alvo = NOME_ARQUIVO_BACEN_NOV_2025
+        # A pasta central passou a receber os PDFs mensais (ex.: 07-2026.pdf),
+        # mas mantém compatibilidade com o arquivo único usado na migração.
+        nomes_alvo = (nome_arquivo_bacen(mes, ano), NOME_ARQUIVO_BACEN_NOV_2025)
     else:
         arquivos = _listar_filhos(service, PASTA_BACEN_ID, MIME_PDF)
-        nome_alvo = nome_arquivo_bacen(mes, ano)
+        nomes_alvo = (nome_arquivo_bacen(mes, ano),)
     for a in arquivos:
         if REGEX_COPIA.match(a["name"]):
             continue
-        if a["name"] == nome_alvo:
+        if a["name"] in nomes_alvo:
             return ArquivoDrive(id=a["id"], name=a["name"], mime_type=a["mimeType"])
+    nome_alvo = " ou ".join(f"'{nome}'" for nome in nomes_alvo)
     raise BacenNaoEncontrado(
         f"PDF BACEN '{nome_alvo}' não encontrado no repositório do Drive "
         "e nem na pasta da operação. Peça ao administrador do Drive para disponibilizar o PDF BACEN desse mês."

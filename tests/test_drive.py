@@ -144,6 +144,18 @@ def test_localiza_pdf_bacen_novo_na_pasta_de_series_novas():
     assert arquivo.id == "new"
 
 
+def test_localiza_pdf_bacen_mensal_na_pasta_de_series_novas():
+    service = _mock_service_drive(
+        {
+            PASTA_BACEN_NOV_2025_ID: [
+                {"id": "julho", "name": "07-2026.pdf", "mimeType": "application/pdf"},
+            ]
+        }
+    )
+    arquivo = localizar_bacen_no_repositorio(service, 7, 2026)
+    assert arquivo.id == "julho"
+
+
 # ─── localizar_pasta_cliente — via mock do service ──────────────────────────
 
 

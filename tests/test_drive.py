@@ -13,7 +13,12 @@ from calculadora_crefaz.drive import (
     _nome_combina,
     _norm,
     localizar_contrato,
+    localizar_bacen_no_repositorio,
     localizar_pasta_cliente,
+)
+from calculadora_crefaz.config import (
+    PASTA_BACEN_ID,
+    PASTA_BACEN_NOV_2025_ID,
 )
 from calculadora_crefaz.exceptions import (
     ContratoNaoEncontrado,
@@ -109,6 +114,34 @@ def test_e_calculo_existente():
     # Não-cálculos
     assert not _e_calculo_existente("10 contrato.xlsx")
     assert not _e_calculo_existente("calculo qualquer.xlsx")
+
+
+def test_localiza_pdf_bacen_antigo_na_pasta_principal():
+    service = _mock_service_drive(
+        {
+            PASTA_BACEN_ID: [
+                {"id": "old", "name": "10-2025.pdf", "mimeType": "application/pdf"},
+            ]
+        }
+    )
+    arquivo = localizar_bacen_no_repositorio(service, 10, 2025)
+    assert arquivo.id == "old"
+
+
+def test_localiza_pdf_bacen_novo_na_pasta_de_series_novas():
+    service = _mock_service_drive(
+        {
+            PASTA_BACEN_NOV_2025_ID: [
+                {
+                    "id": "new",
+                    "name": "SGS - Sistema Gerenciador de Séries Temporais.pdf",
+                    "mimeType": "application/pdf",
+                },
+            ]
+        }
+    )
+    arquivo = localizar_bacen_no_repositorio(service, 11, 2025)
+    assert arquivo.id == "new"
 
 
 # ─── localizar_pasta_cliente — via mock do service ──────────────────────────

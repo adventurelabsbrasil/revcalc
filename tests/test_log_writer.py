@@ -80,6 +80,8 @@ def _dados_log_marli() -> DadosLog:
             ArquivoGerado("11 Series Temporais.pdf", "mantido"),
             ArquivoGerado("12 Log.txt", "append"),
         ],
+        bacen_codigo_anual=29974,
+        bacen_codigo_mensal=29977,
         timestamp=datetime(2026, 4, 28, 14, 32, 11),
     )
 
@@ -101,6 +103,9 @@ def test_log_marli_contem_campos_chave():
     assert "Parcelas pagas até hoje: 3" in txt
     assert "CÁLCULO" in txt
     assert "pasta_cliente" in txt
+    assert "Mês de referência (1º vencimento): 02/2026" in txt
+    assert "Série anual: 29974" in txt
+    assert "Série mensal: 29977" in txt
     assert "STATUS: SUCESSO" in txt
     # Lista de arquivos gerados
     assert "10 Cálculo MARLI SUELI BERGER DAMBROSIO.xlsx (novo)" in txt

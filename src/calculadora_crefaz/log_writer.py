@@ -9,11 +9,16 @@ permanece disponível para console/debug e pode ser reativado como saída
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from . import __version__
-from .config import NOME_BACEN_PASTA_CLIENTE, nome_arquivo_bacen
+from .config import (
+    DATA_MUDANCA_SERIES_BACEN,
+    NOME_ARQUIVO_BACEN_NOV_2025,
+    NOME_BACEN_PASTA_CLIENTE,
+    nome_arquivo_bacen,
+)
 from .planilha import DadosPlanilha
 
 OrigemBacen = Literal["pasta_cliente", "serie_do_bacen"]
@@ -39,6 +44,8 @@ class DadosLog:
     bacen_ano: int
     aba_template: str
     arquivos_gerados: list[ArquivoGerado]
+    bacen_codigo_anual: int
+    bacen_codigo_mensal: int
     status: str = "SUCESSO"
     timestamp: datetime | None = None  # default: now()
     duration_sec: float | None = None
@@ -79,7 +86,11 @@ def _prefixo_aviso_bacen_incluido_pelo_sistema(dados: DadosLog) -> str:
     """Bloco em destaque no log quando o BACEN veio do repositório (não estava na pasta)."""
     if dados.bacen_origem != "serie_do_bacen":
         return ""
-    pdf_serie = nome_arquivo_bacen(dados.bacen_mes, dados.bacen_ano)
+    pdf_serie = (
+        NOME_ARQUIVO_BACEN_NOV_2025
+        if date(dados.bacen_ano, dados.bacen_mes, 1) >= DATA_MUDANCA_SERIES_BACEN
+        else nome_arquivo_bacen(dados.bacen_mes, dados.bacen_ano)
+    )
     return f"""\
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ATENÇÃO — PDF BACEN NÃO ESTAVA NA PASTA DA CLIENTE
@@ -177,8 +188,10 @@ Aba do template: {dados.aba_template}
 BACEN
 -----
 Origem: {_bacen_origem_humana(dados.bacen_origem)}
-Mês de referência (data de emissão): {dados.bacen_mes:02d}/{dados.bacen_ano}
-Taxa 25464: {_fmt_pct(pl.taxa_bacen)}
+Mês de referência (1º vencimento): {dados.bacen_mes:02d}/{dados.bacen_ano}
+Série anual: {dados.bacen_codigo_anual}
+Série mensal: {dados.bacen_codigo_mensal}
+Taxa mensal BACEN: {_fmt_pct(pl.taxa_bacen)}
 
 DIVERGÊNCIA
 -----------

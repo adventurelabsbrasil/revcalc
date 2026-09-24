@@ -103,7 +103,7 @@ def test_log_marli_contem_campos_chave():
     assert "Parcelas pagas até hoje: 3" in txt
     assert "CÁLCULO" in txt
     assert "pasta_cliente" in txt
-    assert "Mês de referência (1º vencimento): 02/2026" in txt
+    assert "Mês de referência BACEN (data de emissão): 02/2026" in txt
     assert "Série anual: 29974" in txt
     assert "Série mensal: 29977" in txt
     assert "STATUS: SUCESSO" in txt

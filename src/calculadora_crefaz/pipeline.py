@@ -35,6 +35,7 @@ from .config import (
 )
 from .exceptions import (
     BacenParseError,
+    BacenFallbackRecusado,
     CalculadoraError,
     CalculoJaExiste,
     ContratoNaoEncontrado,
@@ -50,6 +51,7 @@ logger = logging.getLogger(__name__)
 
 
 StatusCallback = Callable[[str], None]
+ConfirmacaoBacenCallback = Callable[[dict], bool]
 
 
 @dataclass
@@ -101,6 +103,11 @@ def _validar_nome(nome: str) -> str:
 
 def _noop(_: str) -> None:
     pass
+
+
+def competencia_bacen(dados_contrato) -> tuple[int, int]:
+    """Retorna a competência BACEN definida pela data de emissão do contrato."""
+    return dados_contrato.data_emissao.month, dados_contrato.data_emissao.year
 
 
 def _count_arquivos_por_status(arquivos: list[ArquivoGerado]) -> tuple[int, int]:
@@ -164,6 +171,7 @@ def executar(
     forcar_contrato_nome: Optional[str] = None,
     status: StatusCallback = _noop,
     aviso: StatusCallback = _noop,
+    confirmar_bacen: Optional[ConfirmacaoBacenCallback] = None,
     hoje: Optional[date] = None,
 ) -> ResultadoPipeline:
     """Orquestra o run: processa a pasta RAIZ + cada SUBPASTA DIRETA com contrato.
@@ -217,6 +225,7 @@ def executar(
                     forcar_contrato_nome=forcar_contrato_nome if is_raiz else None,
                     emit=emit,
                     aviso=aviso,
+                    confirmar_bacen=confirmar_bacen,
                     hoje=hoje,
                 )
             )
@@ -250,6 +259,7 @@ def executar_lote(
     *,
     status: StatusCallback = _noop,
     aviso: StatusCallback = _noop,
+    confirmar_bacen: Optional[ConfirmacaoBacenCallback] = None,
     hoje: Optional[date] = None,
 ) -> ResultadoLote:
     """Processa VÁRIOS clientes em sequência (v0.9.8), aplicando a regra de pular
@@ -260,7 +270,14 @@ def executar_lote(
         status("")
         status(f"=== Cliente: {nome} ===")
         try:
-            res = executar(nome, sessao, status=status, aviso=aviso, hoje=hoje)
+            res = executar(
+                nome,
+                sessao,
+                status=status,
+                aviso=aviso,
+                confirmar_bacen=confirmar_bacen,
+                hoje=hoje,
+            )
             eh_nada_novo = not res.arquivos_gerados and bool(res.pulados)
             clientes.append(
                 ClienteResultado(nome, "nada_novo" if eh_nada_novo else "ok", resultado=res)
@@ -273,6 +290,8 @@ def executar_lote(
         except PastaAmbigua as e:
             status(f"[cliente ambíguo] {nome}")
             clientes.append(ClienteResultado(nome, "ambiguo", erro=str(e), paths=e.paths))
+        except BacenFallbackRecusado:
+            raise
         except CalculadoraError as e:
             # ContratoNaoEncontrado, EntradaInvalida, erros de parse/BACEN etc.
             status(f"[erro] {nome}: {e}")
@@ -302,6 +321,7 @@ def _processar_pasta(
     forcar_contrato_nome: Optional[str],
     emit: StatusCallback,
     aviso: StatusCallback,
+    confirmar_bacen: Optional[ConfirmacaoBacenCallback],
     hoje: date,
 ) -> ResultadoPipeline:
     """Processa UMA pasta (raiz ou subpasta). Lança ContratoNaoEncontrado se não
@@ -351,8 +371,7 @@ def _processar_pasta(
         f"| paid installments to date: {parcelas} | sheet: {aba}"
     )
 
-    bacen_mes = dados_contrato.primeiro_vencimento.month
-    bacen_ano = dados_contrato.primeiro_vencimento.year
+    bacen_mes, bacen_ano = competencia_bacen(dados_contrato)
 
     bacen_na_pasta = drive.localizar_bacen_na_pasta(service, pasta.id)
     bacen_file_id_subido: Optional[str] = None
@@ -389,6 +408,21 @@ def _processar_pasta(
         # buscar a fonte compatível no repositório central evita usar a taxa errada.
         if not bacen_na_pasta:
             raise
+        if confirmar_bacen is None:
+            raise
+        if not confirmar_bacen(
+            {
+                "competencia": f"{bacen_mes:02d}/{bacen_ano}",
+                "nome_pdf_local": bacen_na_pasta.name,
+                "mensagem": (
+                    f"O PDF BACEN local não contém a competência {bacen_mes:02d}/{bacen_ano}. "
+                    "É necessário buscar o PDF correto no repositório central."
+                ),
+            }
+        ):
+            raise BacenFallbackRecusado(
+                f"Fallback BACEN recusado para {bacen_mes:02d}/{bacen_ano}."
+            )
         emit(f"Client BACEN PDF is incompatible with {bacen_mes:02d}/{bacen_ano} ({exc}); fetching the compatible repository PDF...")
         bacen_repo = drive.localizar_bacen_no_repositorio(service, bacen_mes, bacen_ano)
         bacen_pdf_bytes = drive.baixar_pdf(service, bacen_repo.id)

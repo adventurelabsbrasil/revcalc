@@ -9,6 +9,8 @@ import {
   fetchVersion,
   fullEventsUrl,
   LoteResult,
+  BacenConfirmation,
+  answerBacenConfirmation,
   loginUrl,
   logout,
   Me,
@@ -45,6 +47,8 @@ export default function Home() {
   const [ver, setVer] = useState<string | null>(null);
   // Auto-reporte de erro do sistema: 'idle' | 'sending' | 'sent' | 'failed'
   const [report, setReport] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  const [bacenConfirmation, setBacenConfirmation] = useState<BacenConfirmation | null>(null);
+  const runIdRef = useRef<string | null>(null);
 
   const esRef = useRef<EventSource | null>(null);
   const finishedRef = useRef(false);
@@ -97,10 +101,26 @@ export default function Home() {
       }
       if (ev.type === "status") {
         addLine({ level: ev.level === "aviso" ? "aviso" : "info", message: ev.message });
+      } else if (ev.type === "bacen_confirmation_required") {
+        setBacenConfirmation({
+          runId: runIdRef.current ?? "",
+          confirmationId: ev.confirmation_id,
+          competencia: ev.competencia,
+          nomePdfLocal: ev.nome_pdf_local,
+          mensagem: ev.mensagem,
+        });
+        addLine({ level: "aviso", message: `Confirmação necessária para BACEN ${ev.competencia}.` });
       } else if (ev.type === "done") {
         finishedRef.current = true;
         addLine({ level: "ok", message: "Pronto." });
         setResult(ev.result as LoteResult);
+        setRunning(false);
+        es.close();
+      } else if (ev.type === "cancelled") {
+        finishedRef.current = true;
+        addLine({ level: "aviso", message: ev.error });
+        setError(ev.error);
+        setBacenConfirmation(null);
         setRunning(false);
         es.close();
       } else if (ev.type === "error") {
@@ -165,6 +185,7 @@ export default function Home() {
     const res = await startRun(fila);
     switch (res.kind) {
       case "started":
+        runIdRef.current = res.data.run_id;
         abrirStream(res.data.events_url);
         break;
       case "not_authenticated":
@@ -177,6 +198,20 @@ export default function Home() {
         setError(res.message);
         break;
     }
+  }
+
+  async function responderBacen(accepted: boolean) {
+    if (!bacenConfirmation || !runIdRef.current) return;
+    const ok = await answerBacenConfirmation(
+      runIdRef.current,
+      bacenConfirmation.confirmationId,
+      accepted,
+    );
+    if (!ok) {
+      setError("A confirmação expirou ou não pôde ser enviada.");
+      return;
+    }
+    setBacenConfirmation(null);
   }
 
   async function sair() {
@@ -344,6 +379,18 @@ export default function Home() {
                     )}
                   </>
                 )}
+              </div>
+            </div>
+          )}
+
+          {bacenConfirmation && (
+            <div className="banner aviso" style={{ marginTop: 14 }}>
+              <strong>Confirmação necessária — BACEN {bacenConfirmation.competencia}</strong>
+              <p>{bacenConfirmation.mensagem}</p>
+              <p>Arquivo local encontrado: <code>{bacenConfirmation.nomePdfLocal}</code></p>
+              <div className="row">
+                <button onClick={() => responderBacen(true)}>Buscar correto e continuar</button>
+                <button className="secondary" onClick={() => responderBacen(false)}>Cancelar cálculo</button>
               </div>
             </div>
           )}

@@ -121,7 +121,7 @@ A Rose move ações de revisão contratual contra a Crefaz (empréstimos com tax
 | I15 | Quantidade de parcelas | Item II "Prazo" |
 | I16 | Valor da parcela cobrada | Item II "Valor da Prestação" |
 | I17 | Taxa pactuada | Item II **"Taxa de Juros Mensal"** (5ª linha do bloco II — NÃO usar a "Taxa de Juros Anual" que é a 7ª linha) |
-| AP15 | Taxa média BACEN | Campo 25464 do PDF BACEN do mês/ano do **1º Vencimento** (não da Data de Emissão). Confirmado pelo caso Marlí: emissão 29/12/2025, 1º vencimento 02/02/2026, BACEN usado é `02-2026.pdf` (taxa 6,47%). |
+| AP15 | Taxa média BACEN | Campo 25464 do PDF BACEN do mês/ano da **Data de Emissão** (não do 1º Vencimento). |
 | BL8 | Quantidade de parcelas pagas | Cálculo: meses_entre(hoje, "1º Vencimento" do Item II), com floor; nunca maior que I15 |
 
 **Outros campos importantes na planilha (apenas para verificar consistência, não preencher):**
@@ -189,11 +189,9 @@ Comando alvo: `python -m calculo_acao "Adriano Luis Calistro Lourenco"` (ou flag
 
 8. **Localizar PDF BACEN.**
    - Pasta `03. MODELOS/Série do Bacen` (ID `1w8aWxOURJewINVPlyGKlitEE-EpStWUe`).
-   - **Mês/ano alvo: o do `1º Vencimento` do contrato (NÃO da Data de Emissão).** Confirmado pelo caso real da Marlí: emissão 29/12/2025, 1º vencimento 02/02/2026 → BACEN usado é `02-2026.pdf` (taxa 6,47%).
-   - Arquivo: `{MM}-{YYYY}.pdf` baseado em `primeiro_vencimento.month` e `primeiro_vencimento.year`.
-   - Exemplo Adriano: 1º vencimento 27/10/2025 → arquivo `10-2025.pdf`.
-   - Exemplo Marlí: 1º vencimento 02/02/2026 → arquivo `02-2026.pdf`.
-   - Se não existir → erro `"BACEN NÃO ENCONTRADO: PDF '{MM}-{YYYY}.pdf' não está em Série do Bacen. Verificar se a equipe da Rose (provavelmente Bruna) já fez upload do mês de referência (mês do 1º vencimento). Lembrete: o BACEN só fica disponível no SGS-BCB algumas semanas após o fim do mês de referência."`.
+   - **Mês/ano alvo: o da `Data de Emissão` do contrato (NÃO do 1º Vencimento).**
+   - Arquivo: `{MM}-{YYYY}.pdf` baseado em `data_emissao.month` e `data_emissao.year`.
+   - Se não existir → erro `"BACEN NÃO ENCONTRADO: PDF '{MM}-{YYYY}.pdf' não está em Série do Bacen. Verificar se a equipe da Rose (provavelmente Bruna) já fez upload do mês de referência (mês da Data de Emissão). Lembrete: o BACEN só fica disponível no SGS-BCB algumas semanas após o fim do mês de referência."`.
    - **Ignorar arquivos com prefixo `Cópia de`** na pasta — são duplicados acidentais.
 
 9. **Extrair taxa do BACEN.** Texto do PDF tem padrão:
@@ -372,7 +370,7 @@ apps/clientes/02_rose/calculo-acao-crefaz/
 - I15 = 12
 - I16 = 226.79
 - I17 = 0.1877 (18,77% / 100)
-- AP15 = taxa BACEN de **outubro/2025** (mês do 1º vencimento 27/10/2025) — buscar valor real do `10-2025.pdf`
+- AP15 = taxa BACEN da competência da **Data de Emissão** — buscar o PDF correspondente
 - BL8 = parcelas pagas calculadas (com data de hoje, considerando 1º vencimento 27/10/2025)
 - 6 imagens embutidas após o print_area
 
@@ -391,7 +389,7 @@ Aba selecionada: `PRICE 24X` (12 parcelas).
 - I15 = 18
 - I16 = 585.53
 - I17 = 0.1449 (14,49% / 100)
-- AP15 = **0.0647** (taxa BACEN fev/2026, mês do 1º vencimento 02/02/2026 — confirmado lendo o `11 Series Temporais.pdf` real da pasta dela)
+- AP15 = taxa BACEN da competência da **Data de Emissão** (validar o valor no PDF correspondente)
 - BL8 = parcelas pagas calculadas
 - 6 imagens embutidas
 
@@ -409,7 +407,7 @@ Aba selecionada: `PRICE 24X` (18 parcelas, ≤ 24).
 4. **Pasta ambígua:** simular nome encontrado em 2 níveis (raiz + estado) → erro listando os 2 paths.
 5. **Pasta apenas em estado:** verificar que a busca em Nível 2 funciona (caso Marlí).
 6. **Contrato múltiplo:** simular pasta com 2 PDFs que casem com algum dos 3 padrões → BLOQUEIO obrigatório.
-7. **BACEN ausente:** apagar o PDF do mês do 1º vencimento temporariamente → erro claro com mensagem mencionando equipe da Rose.
+7. **BACEN ausente:** solicitar confirmação explícita antes de buscar/copiar o PDF central do mês da Data de Emissão; sem aceite, interromper sem gerar XLSX.
 8. **Prazo fora do template:** contrato com 72 parcelas → erro.
 9. **XLSX final imprimível em A4 paisagem:** validar via `libreoffice --convert-to pdf` e checar `paperSize == 9` + `orientation == 'landscape'`.
 10. **PDF BACEN copiado para a pasta da cliente** com nome `11 Series Temporais.pdf` (validar idempotência por SHA-256).
@@ -433,7 +431,7 @@ Aba selecionada: `PRICE 24X` (18 parcelas, ≤ 24).
 5. **Tabela Supabase `adv_rose_calculos_crefaz` em qual projeto?** (Provavelmente o mesmo do `roseportaladvocacia` admin atual — confirmar.)
 6. **Linha 5 do item II é "Taxa de Juros Mensal" e linha 7 é "Taxa de Juros Anual" — confirmar com Rodrigo se a regra é sempre essa contagem ou se é "taxa mensal" como rótulo.** (Recomendação: usar rótulo, mais robusto.)
 7. **Convenção de numeração dos arquivos na pasta da cliente.** A pasta da Marlí mostra `09 Contrato Crefaz.pdf` e `11 Series Temporais.pdf` — sugere que `10 Cálculo {NOME}.xlsx` seria o nome canônico do XLSX gerado. Confirmar com Rodrigo (e idealmente com a Bruna/Roselaine) se essa é a convenção definitiva ou variante. Em particular: **(a)** se "Series" é sem acento ou "Séries" com acento; **(b)** se o número 10 é exclusivo do Cálculo ou pode ser usado para outros docs; **(c)** se há um número 12 reservado (talvez petição inicial?).
-8. **A regra de "BACEN do mês do 1º vencimento" é sempre essa, ou em algum caso usa-se BACEN do mês da Data de Emissão?** Inferi a regra do caso Marlí (1º venc 02/02/2026 → BACEN `02-2026`). Validar com a Bruna/Roselaine que esse é o critério jurídico correto antes de codar.
+8. **A regra é BACEN do mês da Data de Emissão.** O primeiro vencimento continua reservado ao cálculo de parcelas pagas e do cronograma.
 9. **Pastas de cliente em mais de 2 níveis?** Verificamos raiz e subpastas de estado. Mas pode haver casos com 3+ níveis (ex: estado/cidade/cliente)? Confirmar com a equipe da Rose.
 
 ## Ordem de implementação sugerida
@@ -502,7 +500,7 @@ Fase 1 completa, com testes e smoke E2E rodando, é trabalho de **1 a 2 dias** n
 ## Changelog
 
 ### 0.2.0 — 2026-04-27
-- **CORREÇÃO CRÍTICA:** BACEN passa a ser buscado pelo mês/ano do **1º Vencimento** do contrato, não da Data de Emissão (validado com pasta real da Marlí: emissão 29/12/2025, 1º venc 02/02/2026, BACEN usado é `02-2026.pdf`).
+- **CORREÇÃO CRÍTICA:** BACEN passa a ser buscado pelo mês/ano da **Data de Emissão** do contrato, não do 1º Vencimento.
 - Adicionada busca de pasta em 2 níveis (raiz + subpastas de estado).
 - Adicionados 3 padrões de nome para o contrato Crefaz (nome cliente / `NN Contrato Crefaz` / `Contrato Crefaz`).
 - Adicionada cópia do PDF BACEN para a pasta da cliente como `11 Series Temporais.pdf`.

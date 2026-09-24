@@ -60,9 +60,47 @@ Veja `.env.example` na raiz. Mínimo:
 
 ```bash
 # na raiz do repo, com .env preenchido
-docker compose up -d --build
+sudo docker compose up -d --build
 curl -fsS http://127.0.0.1:8000/healthz   # {"status":"ok","libreoffice":true}
 ```
+
+O merge do GitHub não atualiza o container automaticamente. Para não deixar o
+servidor atrás do `main`, toda mudança em `src/`, `server/` ou `templates/`
+deve seguir esta sequência:
+
+1. Atualizar o clone de produção e confirmar que não há alterações rastreadas
+   locais antes de alinhar ao `main`:
+
+   ```bash
+   cd ~/revcalc
+   git fetch origin
+   git status --short --branch
+   git switch main
+   git reset --hard origin/main
+   ```
+
+   Arquivos `.bak` e logs não rastreados devem ser preservados; o `reset` não
+   pode apagar alterações rastreadas sem autorização.
+
+2. Rebuildar o container e validar a entrega real:
+
+   ```bash
+   sudo docker compose up -d --build
+   curl -fsS http://127.0.0.1:8000/healthz
+   sudo docker exec revcalc-api grep -n competencia_bacen /app/src/calculadora_crefaz/pipeline.py
+   sudo docker ps --filter name=revcalc-api
+   ```
+
+   O healthcheck deve estar saudável e o marcador específico do commit deve
+   existir dentro do container. Para mudanças de regra, executar também um
+   smoke que diferencie o mês da emissão do primeiro vencimento.
+
+3. Só depois validar o deploy **Production** da Vercel e executar o smoke web.
+   A entrega só está concluída quando backend e frontend apontam para o mesmo
+   `main`.
+
+> O `beelink` não faz mais parte da topologia de produção. Não usar o antigo
+> procedimento de rebuild em dois hosts.
 
 Aponte o Traefik para `127.0.0.1:8000` (ou use os labels comentados no
 `docker-compose.yml` ligando à rede do Traefik). TLS no Traefik.

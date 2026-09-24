@@ -1,6 +1,6 @@
 # Calculadora de Ação Crefaz
 
-**Versão atual:** `v0.9.13` · **Cliente:** Rose Portal Advocacia
+**Versão atual:** `v0.9.14` · **Cliente:** Rose Portal Advocacia
 
 Automatiza o cálculo de revisão de contratos **Crefaz**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica. Aceita **vários clientes em lote** e **pula automaticamente** contratos que já têm cálculo.
 
@@ -16,7 +16,7 @@ Desde 06/2026 roda **como web app** (a versão desktop `.exe` foi bloqueada pelo
 
 O **engine de cálculo** (`src/calculadora_crefaz/`) é o mesmo do desktop, rodando inalterado dentro do container — `server/` só embrulha em HTTP (OAuth server-side + SSE de progresso). O `templates/Calculo.xlsx` é o **entregável jurídico CONGELADO**; o Python só preenche inputs, o Excel calcula.
 
-**Deploy:** backend `docker compose up -d --build` **nos dois hosts** (xeon + beelink; `.env` idêntico do Infisical, mesmo `SESSION_SECRET`) + túnel `cloudflared` (systemd `--user`) em cada um; front `vercel --prod` (rootDir `web`, env `NEXT_PUBLIC_API_BASE`). ⚠️ Ao mergear mudança de engine/contrato, **rebuildar os dois backends** — senão os replicas servem versões diferentes (skew). Detalhes em [`server/README.md`](server/README.md) e [`web/README.md`](web/README.md).
+**Deploy:** o backend de produção roda no **xeon** (o beelink foi descontinuado). Após qualquer merge que altere `src/`, `server/` ou `templates/`, seguir obrigatoriamente o checklist de [`server/README.md`](server/README.md): atualizar o clone no xeon, executar `sudo docker compose up -d --build`, confirmar `/healthz` e um marcador funcional do commit, e só então validar o deploy Production da Vercel e executar o smoke web. **Merge sem rebuild do xeon não é deploy concluído.** O front usa `vercel --prod` (rootDir `web`, env `NEXT_PUBLIC_API_BASE`).
 
 **Saída na pasta da cliente**: `Calculo.xlsx` · `NN Calculo.pdf` · `NN Series Temporais.pdf` (BACEN) · `imag.01.png` (Item II do contrato, recorte só da seção) · `imag.02.png` (bloco "Parcela com Taxa Média e Expurgo"). No fluxo **quitado** o cálculo vira `Calculo quitado.xlsx` · `NN Calculo quitado.pdf`.
 

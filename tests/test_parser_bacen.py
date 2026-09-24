@@ -75,6 +75,12 @@ def test_pega_mensal_nao_anual():
     assert taxa != pytest.approx(0.8015)
 
 
+def test_cabecalho_sgs_sem_unidades():
+    """Aceita o cabeçalho dos PDFs SGS reais: ``Data código_anual código_mensal``."""
+    texto = "Data 20742 25464\nout/2025 101,12 6,00\n"
+    assert extrair_taxa_mes(texto, 10, 2025) == pytest.approx(0.06)
+
+
 def test_todos_os_meses():
     """Garante que todas as abreviações em pt-BR são reconhecidas."""
     texto_todos = """\

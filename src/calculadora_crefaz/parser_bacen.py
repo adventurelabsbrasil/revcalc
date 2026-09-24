@@ -57,6 +57,9 @@ def _extrair_codigos(texto: str) -> tuple[int, int]:
     padroes = (
         r"(?:Data\s+)?mês/AAAA\s+(\d+)\s+%\s*a\.a\.\s+(\d+)\s+%\s*a\.m\.",
         r"(?:Data\s+)?mes/AAAA\s+(\d+)\s+%\s*a\.a\.\s+(\d+)\s+%\s*a\.m\.",
+        # O PDF exportado pelo SGS também pode omitir as unidades no cabeçalho:
+        # ``Data 20742 25464`` (ou ``Data 29974 29977``).
+        r"Data\s+(\d+)\s+(\d+)",
     )
     for padrao in padroes:
         match = re.search(padrao, compacto, re.IGNORECASE)

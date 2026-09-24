@@ -290,18 +290,22 @@ def localizar_bacen_no_repositorio(service, mes: int, ano: int) -> ArquivoDrive:
     Lança BacenNaoEncontrado se não existir nem na pasta cliente nem aqui.
     """
     if date(ano, mes, 1) >= DATA_MUDANCA_SERIES_BACEN:
-        arquivos = _listar_filhos(service, PASTA_BACEN_NOV_2025_ID, MIME_PDF)
-        # A pasta central passou a receber os PDFs mensais (ex.: 07-2026.pdf),
-        # mas mantém compatibilidade com o arquivo único usado na migração.
-        nomes_alvo = (nome_arquivo_bacen(mes, ano), NOME_ARQUIVO_BACEN_NOV_2025)
+        # Os PDFs mensais continuam na pasta central ``Série do Bacen``.
+        # O diretório separado da migração fica apenas como fallback para o
+        # arquivo único legado.
+        buscas = (
+            (PASTA_BACEN_ID, (nome_arquivo_bacen(mes, ano),)),
+            (PASTA_BACEN_NOV_2025_ID, (NOME_ARQUIVO_BACEN_NOV_2025,)),
+        )
     else:
-        arquivos = _listar_filhos(service, PASTA_BACEN_ID, MIME_PDF)
-        nomes_alvo = (nome_arquivo_bacen(mes, ano),)
-    for a in arquivos:
-        if REGEX_COPIA.match(a["name"]):
-            continue
-        if a["name"] in nomes_alvo:
-            return ArquivoDrive(id=a["id"], name=a["name"], mime_type=a["mimeType"])
+        buscas = ((PASTA_BACEN_ID, (nome_arquivo_bacen(mes, ano),)),)
+    nomes_alvo = tuple(nome for _, nomes in buscas for nome in nomes)
+    for pasta_id, nomes in buscas:
+        for a in _listar_filhos(service, pasta_id, MIME_PDF):
+            if REGEX_COPIA.match(a["name"]):
+                continue
+            if a["name"] in nomes:
+                return ArquivoDrive(id=a["id"], name=a["name"], mime_type=a["mimeType"])
     nome_alvo = " ou ".join(f"'{nome}'" for nome in nomes_alvo)
     raise BacenNaoEncontrado(
         f"PDF BACEN '{nome_alvo}' não encontrado no repositório do Drive "

@@ -33,7 +33,7 @@ python3.11 -m venv .venv
 source .venv/bin/activate         # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"           # ou: pip install -r requirements.txt
 
-cp cliente-kit/revcalc-desktop.example.json revcalc-desktop.json # preencher perfil Desktop
+cp .env.example .env              # editar com client_id + secret reais
 ```
 
 ### LibreOffice (necessário pras capturas v0.6.0+)
@@ -50,20 +50,14 @@ sudo apt install libreoffice
 
 Sem LibreOffice o app continua funcionando — XLSX e log são gerados normalmente, mas as capturas PNG/PDF emitem aviso e não saem.
 
-### Configuração desktop
+### `.env`
 
 ```
-GOOGLE_OAUTH_DESKTOP_CLIENT_ID=<Desktop client from Google Cloud Console>
-REVCALC_DOMINIOS_PERMITIDOS=client.example
-REVCALC_PASTA_MAE_ID=<approved Drive root>
-REVCALC_PASTA_BACEN_ID=<approved BACEN folder>
+GOOGLE_OAUTH_CLIENT_ID=<from Google Cloud Console>
+GOOGLE_OAUTH_CLIENT_SECRET=<from Google Cloud Console>
 ```
 
-Prefira o perfil `revcalc-desktop.json` completo fornecido pela administração.
-As variáveis acima são overrides de desenvolvimento; não exigem Client Secret.
-Web continua usando GOOGLE_OAUTH_CLIENT_ID/SECRET próprios. Ambiente e .env
-legado são preservados. Público Internal/External depende da organização real,
-não dos placeholders públicos. Veja [Desktop OAuth](docs/DESKTOP_OAUTH.md).
+OAuth client deve ser tipo **Desktop**, no projeto Google Cloud `adventurelabs-revcalc-prod` (Workspace Adventure). A configuração validada para Windows está documentada em [`docs/OAUTH_WINDOWS.md`](docs/OAUTH_WINDOWS.md). Nunca registre os valores reais no repositório.
 
 ---
 
@@ -210,12 +204,10 @@ Plano: GitHub Actions Windows-only que dispara em `push tag v*`, roda `pyinstall
 
 1. Console → seu projeto → **APIs & Services → Credentials**
 2. Create Credentials → OAuth client ID → **Desktop app**
-3. Provisionar apenas o Client ID Desktop no perfil privado da operação
+3. Copiar `client_id` + `client_secret` pro `.env` local
 4. **Authorized redirect URIs** não precisa configurar (loopback dinâmico)
 5. **Scopes:** `https://www.googleapis.com/auth/drive`
-6. Confirmar o público do consentimento e os domínios/contas aprovados. Internal
-   exige contas na organização Workspace proprietária; organizações diferentes
-   podem exigir External, testes e verificação. Não alterar o cliente Web existente.
+6. **Domínio:** projeto deve estar em workspace `example.invalid` com OAuth consent screen tipo **Internal**
 
 ---
 
@@ -296,8 +288,7 @@ calculo-acao-revisao/
 ├── pyinstaller.spec               # build .exe Windows (e .app Mac)
 ├── requirements.txt
 ├── .env.example                   # template (commitado)
-├── .env                           # gitignored — configuração legada/web
-├── revcalc-desktop.json            # gitignored — perfil privado, sem segredos
+├── .env                           # gitignored — client_id + secret reais
 ├── .gitignore
 ├── conftest.py                    # config global pytest
 ├── abrir-calculadora-revisao.command  # launcher Mac (bash)

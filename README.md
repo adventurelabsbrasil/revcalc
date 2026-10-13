@@ -57,6 +57,8 @@ O instalador por download exige a tag v0.9.15 publicada; a release anterior não
 contém o novo fluxo. Provisionamento e critérios de liberação:
 [`docs/DESKTOP_OAUTH.md`](docs/DESKTOP_OAUTH.md).
 
+A configuração OAuth Desktop validada para o kit local está em [`docs/OAUTH_WINDOWS.md`](docs/OAUTH_WINDOWS.md). Os valores reais permanecem fora do GitHub.
+
 ## Resultados gerados
 
 Na pasta do contrato, o RevCalc pode gerar:

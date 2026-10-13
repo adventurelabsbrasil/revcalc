@@ -2,6 +2,7 @@
     [switch]$InstallLibreOffice,
     [string]$Version = "0.9.15",
     [string]$ProfilePath,
+    [string]$ArchivePath,
     [string]$BaseRoot = (Join-Path $env:LOCALAPPDATA "AdventureLabs\RevCalc"),
     [string]$ExistingRoot
 )
@@ -30,7 +31,11 @@ New-Item -ItemType Directory -Path $downloadRoot | Out-Null
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $zipPath = Join-Path $downloadRoot "release.zip"
-    Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/adventurelabsbrasil/revcalc/archive/refs/tags/v$Version.zip" -OutFile $zipPath
+    if ($ArchivePath) {
+        Copy-Item -LiteralPath (Resolve-Path -LiteralPath $ArchivePath).Path -Destination $zipPath
+    } else {
+        Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/adventurelabsbrasil/revcalc/archive/refs/tags/v$Version.zip" -OutFile $zipPath
+    }
     Expand-Archive -LiteralPath $zipPath -DestinationPath $downloadRoot
     $source = Join-Path $downloadRoot "revcalc-$Version"
     if (-not (Test-Path -LiteralPath (Join-Path $source "pyproject.toml"))) { throw "Pacote inválido." }

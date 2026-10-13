@@ -36,6 +36,10 @@ O cálculo/XLSX funciona sem LibreOffice; capturas PDF/PNG precisam dele.
 O processamento ocorre no Windows e acessa o Google diretamente, sem precisar
 do backend RevCalc, Xeon ou Vercel. Internet e Google Drive continuam necessários.
 
+Para testar antes da publicação, a Adventure pode fornecer um ZIP local e usar
+`-ArchivePath "C:\caminho\RevCalc-v0.9.15-proposta.zip" -ProfilePath "C:\caminho\revcalc-desktop.json"`.
+O ZIP deve conter a pasta `revcalc-0.9.15`; o perfil OAuth precisa estar provisionado.
+
 ## Reinstalar, migrar e atualizar
 
 Reexecutar o instalador preserva configuração e credenciais. Instalações antigas

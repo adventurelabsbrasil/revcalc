@@ -38,6 +38,8 @@ Web OAuth client, cookies and server token store; no web secret is distributed.
 6. Distribute the configured kit through an authenticated administrator channel.
    Include Install-RevCalc.ps1, RevCalc-Installation.ps1 and Atualizar-RevCalc.ps1.
    Publish the matching version tag before using the downloading installer.
+   For pre-release testing use `-ArchivePath` with an administrator-supplied
+   local source ZIP containing `revcalc-0.9.15/`; no public tag is needed then.
 
 The profile holds only desktop client ID, domains and Drive references. It must
 never contain client_secret, tokens, session keys or infrastructure credentials;

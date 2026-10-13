@@ -20,7 +20,7 @@ import {
 
 const ERROS_QUERY: Record<string, string> = {
   dominio_nao_autorizado:
-    "Esse e-mail não tem permissão. Use uma conta @roseportaladvocacia.com.br.",
+    "Esse e-mail não tem permissão. Use uma conta @example.invalid.",
   consent_negado: "Login cancelado.",
   state_invalido: "Sessão de login expirou. Tente entrar de novo.",
   falha_oauth: "Falha ao autenticar com o Google. Tente novamente.",
@@ -236,7 +236,7 @@ export default function Home() {
     <main>
       <div className="topbar">
         <span>
-          Rose Portal Advocacia
+          Operação de Revisão de Contratos
           {ver && <small style={{ opacity: 0.6, marginLeft: 8 }}>v{ver}</small>}
         </span>
         <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -255,7 +255,7 @@ export default function Home() {
         </span>
       </div>
 
-      <h1>Calculadora Crefaz</h1>
+      <h1>Calculadora Revisao</h1>
       <p className="sub">
         Gera o cálculo revisional e salva tudo na pasta da cliente no Drive.
       </p>

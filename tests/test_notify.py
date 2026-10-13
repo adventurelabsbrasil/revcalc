@@ -10,23 +10,23 @@ from server import notify
 def test_montar_texto_inclui_projeto_cliente_tipo_e_resumo():
     txt = notify.montar_texto_feedback(
         projeto="RevCalc",
-        cliente="Rose Portal Advocacia",
+        cliente="Operação de Revisão de Contratos",
         tipo="bug",
         origem="manual",
-        email="bruna@roseportaladvocacia.com.br",
+        email="pessoa@example.invalid",
         mensagem="as linhas das parcelas não batem com o contrato",
         app_version="0.9.7",
     )
-    assert "RevCalc" in txt and "Rose Portal Advocacia" in txt
+    assert "RevCalc" in txt and "Operação de Revisão de Contratos" in txt
     assert "Falha" in txt  # label do tipo bug
     assert "v0.9.7" in txt
-    assert "bruna@roseportaladvocacia.com.br" in txt
+    assert "pessoa@example.invalid" in txt
     assert "linhas das parcelas" in txt
 
 
 def test_montar_texto_marca_auto_e_trunca():
     txt = notify.montar_texto_feedback(
-        projeto="RevCalc", cliente="Rose", tipo="erro_sistema", origem="auto",
+        projeto="RevCalc", cliente="OPERAÇÃO", tipo="erro_sistema", origem="auto",
         email=None, mensagem="x" * 500, app_version="0.9.7",
     )
     assert "(auto)" in txt

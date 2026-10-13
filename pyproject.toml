@@ -1,7 +1,7 @@
 [project]
-name = "calculadora-crefaz"
+name = "calculadora-revisao"
 version = "0.9.14"
-description = "Calculadora de Ação Crefaz — Rose Portal Advocacia (MVP)"
+description = "Calculadora de Ação Revisao — Operação de Revisão de Contratos (MVP)"
 requires-python = ">=3.11"
 authors = [
     {name = "Adventure Labs", email = "contato@adventurelabs.com.br"},
@@ -36,7 +36,7 @@ web = [
 ]
 
 [project.scripts]
-calculadora-crefaz = "calculadora_crefaz.__main__:main"
+calculadora-revisao = "calculadora_crefaz.__main__:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]

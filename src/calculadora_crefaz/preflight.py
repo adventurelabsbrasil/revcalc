@@ -49,8 +49,8 @@ def _banner_stderr() -> None:
         __version__ = "?"
     linha = "=" * 60
     print(linha, file=sys.stderr)
-    print(f" Calculadora Crefaz · v{__version__}", file=sys.stderr)
-    print(" Rose Portal Advocacia · desenvolvido pela Adventure Labs", file=sys.stderr)
+    print(f" RevCalc — Calculadora de Revisão de Contratos · v{__version__}", file=sys.stderr)
+    print(" Operação de Revisão de Contratos · desenvolvido pela Adventure Labs", file=sys.stderr)
     print(linha, file=sys.stderr)
 
 
@@ -104,7 +104,7 @@ def verificar_ou_sair() -> None:
 
     if faltando:
         print(
-            "Erro: faltam pacotes Python necessários para a Calculadora Crefaz.\n",
+            "Erro: faltam pacotes Python necessários para o RevCalc.\n",
             file=sys.stderr,
         )
         for modulo, pip_pkg, extra_hint in faltando:

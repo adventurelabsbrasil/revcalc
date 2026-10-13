@@ -38,12 +38,12 @@ def test_nome_pdf_quitado_sem_seq():
 @pytest.mark.parametrize(
     "nome, esperado",
     [
-        ("09 Contrato Crefaz FULANO DE TAL.pdf", 9),
-        ("10 Contrato Crefaz.pdf", 10),
-        ("07 Contrato Crefaz MARIA.pdf", 7),
-        ("Contrato Crefaz.pdf", None),          # sem prefixo → fallback
-        ("Contrato Crefaz FULANO.pdf", None),
-        ("contrato crefaz.pdf", None),
+        ("09 Contrato Revisao FULANO DE TAL.pdf", 9),
+        ("10 Contrato Revisao.pdf", 10),
+        ("07 Contrato Revisao MARIA.pdf", 7),
+        ("Contrato Revisao.pdf", None),          # sem prefixo → fallback
+        ("Contrato Revisao FULANO.pdf", None),
+        ("contrato revisao.pdf", None),
     ],
 )
 def test_numero_prefixo(nome, esperado):

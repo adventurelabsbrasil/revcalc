@@ -85,7 +85,7 @@ class TestParcelasPagas:
             hoje=date(2026, 2, 2),
         ) == 1
 
-    def test_marli_3_parcelas(self):
+    def test_pessoa_teste_c_3_parcelas(self):
         # 1º venc 02/02/2026, hoje 27/04/2026
         # meses_entre = (2026-2026)*12 + (4-2) + (1 if 27>=2 else 0) = 0+2+1 = 3
         assert parcelas_pagas(
@@ -115,7 +115,7 @@ class TestParcelasPagas:
 
 
 class TestDecidirAba:
-    # v0.6.0: Crefaz só opera contratos de até 24 parcelas → uma única aba "CÁLCULO".
+    # v0.6.0: Revisao só opera contratos de até 24 parcelas → uma única aba "CÁLCULO".
     # As abas multi-prazo (PRICE 36x/48x/60x) foram removidas; prazo > 24 agora lança.
     def test_prazo_1_aba_calculo(self):
         assert decidir_aba(1) == "CÁLCULO"

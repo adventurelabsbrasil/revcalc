@@ -1,6 +1,6 @@
 -- revcalc_feedback — caixa de feedback do app (Melhoria / Falha / Log de erro / Dúvida).
 --
--- Projeto Supabase canônico: ftctmseyrqhckutpfdeq (Adventure).
+-- Configure o projeto Supabase no ambiente privado de execução.
 -- O backend FastAPI (server/feedback.py) insere via PostgREST com a ANON key
 -- (não a service_role) + uma policy INSERT-only. Least-privilege deliberado: a
 -- service_role bypassa o RLS do banco INTEIRO (Sueli, financeiro, Dino...) e não
@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS public.revcalc_feedback (
   github_issue text                                   -- preenchido na promoção manual p/ issue (owner/repo#N)
 );
 
-COMMENT ON TABLE  public.revcalc_feedback IS 'Feedback do app revcalc (Rose). Tipos: feat/bug/erro_sistema/duvida. origem auto = botão de reporte de erro do sistema.';
-COMMENT ON COLUMN public.revcalc_feedback.contexto IS 'jsonb não-PII-sensível por padrão; em erro_sistema pode conter linhas de log da run (dado do próprio tenant Rose).';
+COMMENT ON TABLE  public.revcalc_feedback IS 'Feedback do app revcalc (OPERAÇÃO). Tipos: feat/bug/erro_sistema/duvida. origem auto = botão de reporte de erro do sistema.';
+COMMENT ON COLUMN public.revcalc_feedback.contexto IS 'jsonb não-PII-sensível por padrão; em erro_sistema pode conter linhas de log da run (dado do próprio tenant OPERAÇÃO).';
 
 CREATE INDEX IF NOT EXISTS revcalc_feedback_created_idx ON public.revcalc_feedback (created_at DESC);
 CREATE INDEX IF NOT EXISTS revcalc_feedback_status_idx  ON public.revcalc_feedback (status);

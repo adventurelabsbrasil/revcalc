@@ -90,7 +90,7 @@ def test_insert_ok_monta_row_e_headers(monkeypatch):
         feedback.registrar(
             tipo="BUG",
             mensagem="cálculo errado",
-            email="user@roseportaladvocacia.com.br",
+            email="user@example.invalid",
             origem="manual",
             contexto={"url": "https://revcalc/x"},
         )
@@ -102,7 +102,7 @@ def test_insert_ok_monta_row_e_headers(monkeypatch):
     assert call["headers"]["Authorization"] == "Bearer anon-key"
     assert call["headers"]["Prefer"] == "return=minimal"
     assert call["json"]["tipo"] == "bug"  # normalizado
-    assert call["json"]["email"] == "user@roseportaladvocacia.com.br"
+    assert call["json"]["email"] == "user@example.invalid"
     assert call["json"]["app_version"]  # versão anexada
     assert call["json"]["contexto"] == {"url": "https://revcalc/x"}
 

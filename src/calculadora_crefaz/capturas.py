@@ -96,7 +96,7 @@ def _xlsx_para_pdf(xlsx_bytes: bytes, *, timeout_s: int = 60) -> bytes:
     """Converte XLSX → PDF via LibreOffice headless. Retorna os bytes do PDF."""
     soffice = _encontrar_soffice()
 
-    with tempfile.TemporaryDirectory(prefix="cap_crefaz_") as tmp:
+    with tempfile.TemporaryDirectory(prefix="cap_revcalc_") as tmp:
         tmp_dir = Path(tmp)
         xlsx_path = tmp_dir / "in.xlsx"
         xlsx_path.write_bytes(xlsx_bytes)
@@ -247,7 +247,7 @@ def recortar_bloco_pmt_pdf(
     do PDF do Cálculo já renderizado — fiel à planilha (sem re-render distorcido).
 
     v0.9.3: imag.02 = prova de como o cálculo foi feito (título + valores + a
-    derivação da fórmula PMT). Recorta direto do PDF (sugestão da Rose: "print do
+    derivação da fórmula PMT). Recorta direto do PDF (sugestão da OPERAÇÃO: "print do
     PDF sai certinho"), evitando o `##`/gaps do re-render regional.
 
     Âncoras (presentes em todas as abas e nos fluxos ativo/quitado):
@@ -430,7 +430,7 @@ def gerar_capturas_regionais(
         ws.page_setup.fitToWidth = 1
         ws.page_setup.fitToHeight = 1
         ws.sheet_properties.pageSetUpPr.fitToPage = True
-        # Limpa header/footer pra não aparecer "Cálculo de Ação Crefaz" / "Página 1 de 1"
+        # Limpa header/footer pra não aparecer "Cálculo de Ação Revisao" / "Página 1 de 1"
         for hf_attr in ("oddHeader", "oddFooter", "evenHeader", "evenFooter"):
             hf = getattr(ws, hf_attr, None)
             if hf is not None:
@@ -531,7 +531,7 @@ def capturar_pagina_pdf(
     """Captura como PNG a primeira página do PDF que contém o marcador.
 
     Args:
-        pdf_bytes: bytes do PDF (contrato Crefaz ou Séries BACEN).
+        pdf_bytes: bytes do PDF (contrato Revisao ou Séries BACEN).
         marcador_regex: regex (re.IGNORECASE) buscado no texto extraído.
         nome_arquivo: nome do PNG resultante (ex: "13 Print 07 Item II do Contrato.png").
         dpi: resolução do PNG.

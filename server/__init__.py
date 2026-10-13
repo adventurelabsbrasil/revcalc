@@ -1,4 +1,4 @@
-"""Backend web da Calculadora Crefaz (FastAPI).
+"""Backend web da Calculadora Revisao (FastAPI).
 
 Embrulha o pipeline desktop (pacote calculadora_crefaz) num serviço HTTP:
 OAuth web server-side, execução do pipeline em thread e progresso ao vivo via SSE.

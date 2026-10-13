@@ -181,7 +181,7 @@ def aplicar_a11(wb) -> None:
         end = PRINT_ROW_END[nome_aba]
         sh.print_area = f"A1:CC{end}"
 
-        sh.oddHeader.center.text = '&"Calibri,Bold"&14Cálculo de Ação Crefaz'
+        sh.oddHeader.center.text = '&"Calibri,Bold"&14Cálculo de Ação Revisao'
         sh.oddFooter.right.text = "Página &P de &N"
 
 

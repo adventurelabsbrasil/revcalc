@@ -59,7 +59,7 @@ def is_quitado(parcelas_pagas: int, prazo: int) -> bool:
 def decidir_aba(prazo: int, quitado: bool = False) -> str:
     """Escolhe a aba do template a partir do prazo (e do status quitado).
 
-    - ATIVO (v0.6.0): Crefaz opera 1–24 parcelas → aba única CÁLCULO.
+    - ATIVO (v0.6.0): Revisao opera 1–24 parcelas → aba única CÁLCULO.
     - QUITADO (v0.9.0): contratos históricos até 60 → abas PRICE 24X/36x/48x/60x.
 
     Lança PrazoForaDoTemplate se o prazo cair fora da faixa do fluxo escolhido.

@@ -1,6 +1,6 @@
-# Calculadora de Ação Crefaz — Documentação de Desenvolvimento
+# Calculadora de Ação Revisao — Documentação de Desenvolvimento
 
-> Aplicação desktop Tkinter + Google Drive + openpyxl + LibreOffice headless. Cliente: **Rose Portal Advocacia**. Stack: Python 3.11+. MVP focado em rigor estrutural nos dados.
+> Aplicação desktop Tkinter + Google Drive + openpyxl + LibreOffice headless. Cliente: **Operação de Revisão de Contratos**. Stack: Python 3.11+. MVP focado em rigor estrutural nos dados.
 >
 > Instalação via terminal / o que o sistema faz: ver o [`README.md`](README.md) na raiz. Documentação operacional pra quem só usa binário: [`cliente-kit/README_USUARIO_FINAL.md`](cliente-kit/README_USUARIO_FINAL.md).
 >
@@ -28,7 +28,7 @@
 ## Setup local
 
 ```bash
-cd apps/clientes/02_rose/calculo-acao-crefaz
+cd apps/clientes/02_OPERAÇÃO/calculo-acao-revisao
 python3.11 -m venv .venv
 source .venv/bin/activate         # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"           # ou: pip install -r requirements.txt
@@ -57,7 +57,7 @@ GOOGLE_OAUTH_CLIENT_ID=<from Google Cloud Console>
 GOOGLE_OAUTH_CLIENT_SECRET=<from Google Cloud Console>
 ```
 
-OAuth client deve ser tipo **Desktop**, no projeto `roseportaladvocacia.com.br` (workspace internal). Domínios autorizados em `config.py`: `roseportaladvocacia.com.br` + `adventurelabs.com.br`.
+OAuth client deve ser tipo **Desktop**, no projeto `example.invalid` (workspace internal). Domínios autorizados em `config.py`: `example.invalid` + `adventurelabs.com.br`.
 
 ---
 
@@ -67,7 +67,7 @@ OAuth client deve ser tipo **Desktop**, no projeto `roseportaladvocacia.com.br` 
 PYTHONPATH=src python -m calculadora_crefaz
 ```
 
-**Mac shortcut:** `chmod +x abrir-calculadora-crefaz.command`, duplo-clique.
+**Mac shortcut:** `chmod +x abrir-calculadora-revisao.command`, duplo-clique.
 
 ---
 
@@ -109,7 +109,7 @@ flowchart TD
     B --> C[3. Localizar pasta cliente em 2 níveis]
     C --> D{4. Já existe<br/>10 Cálculo*.xlsx?}
     D -->|sim, sem --force| E[Pedir confirmação UI]
-    D -->|não| F[5. Localizar contrato Crefaz]
+    D -->|não| F[5. Localizar contrato Revisao]
     E -->|confirma| F
     E -->|cancela| Z[BloqueioDedup]
     F --> G[6. Baixar e parsear contrato]
@@ -175,7 +175,7 @@ pip install pyinstaller
 pyinstaller pyinstaller.spec
 ```
 
-Output: `dist/CalculadoraCrefaz.exe` (~50 MB single-file). Hidden imports do keyring já configurados pra Windows/Mac/Linux. Template embarcado via `--add-data`.
+Output: `dist/RevCalc.exe` (~50 MB single-file). Hidden imports do keyring já configurados pra Windows/Mac/Linux. Template embarcado via `--add-data`.
 
 > O .exe **NÃO** embarca LibreOffice. A máquina destino precisa ter LibreOffice instalado pra capturas funcionarem. Sem ele, o app gera XLSX + log normalmente mas pula capturas.
 
@@ -185,12 +185,12 @@ No macOS:
 
 ```bash
 .venv/bin/pyinstaller --onefile --windowed \
-    --name CalculadoraCrefaz \
+    --name RevCalc \
     --add-data "templates/Calculo.xlsx:templates" \
     src/calculadora_crefaz/__main__.py
 ```
 
-Output: `dist/CalculadoraCrefaz.app`. **Sem assinatura** — usuário tem que clicar com botão direito → "Abrir" → "Abrir mesmo assim" na primeira vez.
+Output: `dist/RevCalc.app`. **Sem assinatura** — usuário tem que clicar com botão direito → "Abrir" → "Abrir mesmo assim" na primeira vez.
 
 Pra produção real, precisa Apple Developer ID ($99/ano) + `codesign` + `notarytool`.
 
@@ -207,7 +207,7 @@ Plano: GitHub Actions Windows-only que dispara em `push tag v*`, roda `pyinstall
 3. Copiar `client_id` + `client_secret` pro `.env` local
 4. **Authorized redirect URIs** não precisa configurar (loopback dinâmico)
 5. **Scopes:** `https://www.googleapis.com/auth/drive`
-6. **Domínio:** projeto deve estar em workspace `roseportaladvocacia.com.br` com OAuth consent screen tipo **Internal**
+6. **Domínio:** projeto deve estar em workspace `example.invalid` com OAuth consent screen tipo **Internal**
 
 ---
 
@@ -229,11 +229,11 @@ Detalhes em [`docs/ESTADO_ATUAL.md`](docs/ESTADO_ATUAL.md).
 
 | ID | Decisão | Razão |
 |----|---------|-------|
-| D1 (rev. v0.6.0) | 1 aba visual única (CÁLCULO) | Crefaz só opera 1-24 parcelas; 4 PRICE eram código morto |
+| D1 (rev. v0.6.0) | 1 aba visual única (CÁLCULO) | Revisao só opera 1-24 parcelas; 4 PRICE eram código morto |
 | D2 | `planilha.py` preservado | MVP enxuto |
 | D3 | Zero identidade visual nova | Rigor nos dados, não cosmético |
-| D4 | 6 seções jurídicas inalteradas | Conteúdo da Rose, não nosso |
-| D5 | Validação técnica = Bruna Scopel + Advogada Bruna; Roselaine recebe ciência | Bug-finding por quem pode auditar |
+| D4 | 6 seções jurídicas inalteradas | Conteúdo da OPERAÇÃO, não nosso |
+| D5 | Validação técnica = Pessoa responsável + Advogada responsável; Pessoa responsável recebe ciência | Bug-finding por quem pode auditar |
 | D6 | XLSX print-ready (paisagem A4 + fitToPage) | Ctrl+P direto vira PDF correto |
 | D7 (v0.5.7) | DADOS+visual em 2 camadas | Separação dados-do-app vs layout-do-cliente |
 | D8 (v0.6.0) | Capturas via LibreOffice headless | Funciona Mac/Win sem Excel instalado |
@@ -268,7 +268,7 @@ Adicionar a `pyinstaller.spec`:
 hiddenimports=[..., "keyring.backends.macOS"]
 ```
 
-### Roselaine reporta `#NAME?` no XLSX
+### Pessoa responsável reporta `#NAME?` no XLSX
 
 Drive renderiza Sheets que não suporta TODAS as fórmulas Excel. Se for `EDATE`, é suportado. Se for algo exótico, recomendar baixar XLSX e abrir no Excel.
 
@@ -281,7 +281,7 @@ Limitação conhecida — o template original tem rows 33-49 com altura 3pt usad
 ## Estrutura completa de arquivos
 
 ```
-calculo-acao-crefaz/
+calculo-acao-revisao/
 ├── README.md                      # documentação pra usuário final
 ├── README_DEV.md                  # este arquivo
 ├── pyproject.toml                 # PEP 621 + entry_point + setuptools (v0.6.0)
@@ -291,7 +291,7 @@ calculo-acao-crefaz/
 ├── .env                           # gitignored — client_id + secret reais
 ├── .gitignore
 ├── conftest.py                    # config global pytest
-├── abrir-calculadora-crefaz.command  # launcher Mac (bash)
+├── abrir-calculadora-revisao.command  # launcher Mac (bash)
 ├── docs/
 │   ├── ESTADO_ATUAL.md            # fonte de verdade (vivo)
 │   └── _obsoletos/                # docs históricos pré-v0.6.0
@@ -314,4 +314,4 @@ calculo-acao-crefaz/
 
 ---
 
-*Mantenedor: Rodrigo Ribas (Adventure Labs). Cliente: Rose Portal Advocacia.*
+*Mantenedor: Rodrigo Ribas (Adventure Labs). Cliente: Operação de Revisão de Contratos.*

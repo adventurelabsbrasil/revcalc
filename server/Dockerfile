@@ -1,4 +1,4 @@
-# Backend web da Calculadora Crefaz.
+# Backend web da Calculadora Revisao.
 # Roda da árvore-fonte (PYTHONPATH=/app/src) em vez de `pip install` do pacote,
 # porque config._resolver_template_path() resolve o template como
 # parents[2]/templates/Calculo.xlsx — só funciona com o layout do repo intacto.

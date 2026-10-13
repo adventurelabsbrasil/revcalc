@@ -9,16 +9,16 @@ from pathlib import Path
 # ─── Drive ──────────────────────────────────────────────────────────────────
 
 # Pasta-mãe "EMPRESTIMO DE ENERGIA" no Drive (layout do tenant)
-PASTA_MAE_ID = os.environ.get("REVCALC_PASTA_MAE_ID", "1OciPZU1-C54kRk7C8QWyIGUb8od7mWcN")
+PASTA_MAE_ID = os.environ.get("REVCALC_PASTA_MAE_ID", "DRIVE_ROOT_TEST_ID")
 
 # Pasta "Série do Bacen" dentro de "EMPRESTIMO DE ENERGIA/03. MODELOS/"
-PASTA_BACEN_ID = os.environ.get("REVCALC_PASTA_BACEN_ID", "1w8aWxOURJewINVPlyGKlitEE-EpStWUe")
+PASTA_BACEN_ID = os.environ.get("REVCALC_PASTA_BACEN_ID", "DRIVE_BACEN_TEST_ID")
 
 # A partir de 01/11/2025 o BCB passou a disponibilizar a série equivalente
 # sem garantias reais em um PDF separado, com códigos SGS novos.
 PASTA_BACEN_NOV_2025_ID = os.environ.get(
     "REVCALC_PASTA_BACEN_NOV_2025_ID",
-    "1kM-Z46EaLcUt0Vx9W95376aWYw8bhI4a",
+    "DRIVE_BACEN_NEW_TEST_ID",
 )
 NOME_ARQUIVO_BACEN_NOV_2025 = "SGS - Sistema Gerenciador de Séries Temporais.pdf"
 DATA_MUDANCA_SERIES_BACEN = date(2025, 11, 1)
@@ -43,16 +43,18 @@ _DOMINIOS_ENV = os.environ.get("REVCALC_DOMINIOS_PERMITIDOS", "").strip()
 DOMINIOS_PERMITIDOS = (
     tuple(d.strip().lower() for d in _DOMINIOS_ENV.split(",") if d.strip())
     if _DOMINIOS_ENV
-    else ("roseportaladvocacia.com.br", "adventurelabs.com.br")
+    else ("example.invalid", "adventurelabs.com.br")
 )
-KEYRING_SERVICE = "calculadora-crefaz"
+KEYRING_SERVICE = "calculadora-revisao"
 
 # ─── Identificação de arquivos na pasta da cliente ──────────────────────────
 
-# Padrões aceitos para o contrato Crefaz (case-insensitive)
+# Padrões aceitos para o contrato de revisão (case-insensitive). O marcador
+# comercial fica fora do código público: qualquer PDF cujo nome contenha
+# "contrato" é elegível, exceto documentos auxiliares explicitamente listados.
 REGEX_CONTRATO = [
-    re.compile(r"^\d{2}\s+contrato\s+crefaz.*\.pdf$", re.IGNORECASE),
-    re.compile(r"^contrato\s+crefaz.*\.pdf$", re.IGNORECASE),
+    re.compile(r"^\d{2}\s+contrato(?:\s+.+)?\.pdf$", re.IGNORECASE),
+    re.compile(r"^contrato(?:\s+.+)?\.pdf$", re.IGNORECASE),
 ]
 
 # Prefixos auxiliares que NUNCA são contrato (excluir do match)
@@ -98,10 +100,10 @@ REGEX_CALCULO_EXISTENTE = re.compile(
     r"^(10\s+c[áa]lculo.*|c[áa]lculo( quitado)?)\.xlsx$", re.IGNORECASE
 )
 
-# ─── Parser do Contrato Crefaz ──────────────────────────────────────────────
+# ─── Parser do Contrato Revisao ──────────────────────────────────────────────
 
 # Marcadores do bloco Item II
-# Marcadores do Item II — Crefaz emite em duas variantes:
+# Marcadores do Item II — Revisao emite em duas variantes:
 #   - "II.EMPRÉSTIMO CONCEDIDO"  (sem espaço entre 'II.' e 'EMPRÉSTIMO') — PDFs antigos
 #   - "II. EMPRÉSTIMO CONCEDIDO" (com espaço)                            — PDFs novos (2025+)
 # Mesma coisa para o III. — usamos regex tolerante a partir de v0.6.9.
@@ -114,7 +116,7 @@ MARCADOR_ITEM_II_FIM = re.compile(
 
 # Separador tolerante a marcador de nota de rodapé (superscript ¹²³/⁰-⁹, dígito
 # ASCII pós-NFKC, ou símbolo *†‡) além de espaço/quebra de linha. Usado entre
-# "Juros" e "Mensal"/"Anual" nos contratos Crefaz novos.
+# "Juros" e "Mensal"/"Anual" nos contratos Revisao novos.
 SEP_NOTA_RODAPE = r"[\s¹²³⁰-⁹\d*†‡]*"
 
 # Regex para campos do Item II (tolerância a espaços e quebras de linha)
@@ -127,7 +129,7 @@ REGEX_ITEM_II = {
     "valor_emprestimo": re.compile(r"Valor\s+do\s+Empr[ée]stimo:\s*R\$\s*([\d.,]+)"),
     "valor_total_contratado": re.compile(r"Valor\s+Total\s+Contratado:\s*R\$\s*([\d.,]+)"),
     "valor_prestacao": re.compile(r"Valor\s+da\s+Presta[çc][ãa]o:\s*R\$\s*([\d.,]+)"),
-    # Contratos Crefaz novos (a partir de 2026-08) trazem um marcador de nota de
+    # Contratos Revisao novos (a partir de 2026-08) trazem um marcador de nota de
     # rodapé entre "Juros" e "Mensal"/"Anual" — ex.: "Taxa de Juros¹ Mensal:". O
     # separador tolera superscripts (¹²³/⁰-⁹), dígito ASCII (caso o extrator
     # normalize o superscript via NFKC → "1") e símbolos de nota (*†‡), além do
@@ -143,7 +145,7 @@ REGEX_ITEM_II = {
 }
 
 # Cabeçalho fora do Item II
-# Crefaz emite o número da cédula em duas variantes:
+# Revisao emite o número da cédula em duas variantes:
 #   - "Nº. 3314993" (ordinal + ponto)  — ex.: ERENI, ELIANE, ADRIANA
 #   - "N.º 4195331" (ponto + ordinal)  — ex.: FABÍOLA, MARILEI, ROSA
 # A classe `[\.\sº°o]{0,4}` aceita qualquer combinação até 4 chars,
@@ -189,7 +191,7 @@ TEMPLATE_PATH = _resolver_template_path()
 # Cálculo retrospectivo (saldo zerado + montante cobrado a mais). v0.9.0.
 TEMPLATE_QUITADO_PATH = _resolver_template_dir() / "Calculo.quitado.xlsx"
 
-# Fluxo ATIVO: Crefaz só opera contratos de até 24 parcelas — uma única aba visual.
+# Fluxo ATIVO: Revisao só opera contratos de até 24 parcelas — uma única aba visual.
 NOME_ABA_CALCULO = "CÁLCULO"
 
 # Fluxo QUITADO: abas por faixa de prazo (até 60 parcelas — contratos históricos).
@@ -319,7 +321,7 @@ def regiao_img02_para_aba(aba: str) -> str:
     return _REGIAO_IMG02_POR_ABA.get(aba, REGIAO_IMG02_XLSX)
 
 # imag.01 = bloco "EMPRÉSTIMO CONCEDIDO" inteiro (cabeçalho → C.E.T. TAXA ANUAL).
-# Robusto a "II." ou "III." (o nº da seção varia entre layouts de contrato Crefaz).
+# Robusto a "II." ou "III." (o nº da seção varia entre layouts de contrato Revisao).
 # Fim = início da seção seguinte "DA LIBERAÇÃO DO CRÉDITO" (ancorado no texto, sem
 # depender do nº), o que inclui as linhas C.E.T. MENSAL/ANUAL no recorte.
 # imag.01: bloco "EMPRÉSTIMO CONCEDIDO" do contrato, do cabeçalho até a linha
@@ -338,7 +340,7 @@ CAPTURA_IMG01_CONTRATO = {
 # ─── Saída ──────────────────────────────────────────────────────────────────
 
 # v0.9.0: nome sem numeração/acento/nome do cliente ("salvar como Calculo").
-# Variante quitado mantém o sufixo (espelha a convenção manual da Rose).
+# Variante quitado mantém o sufixo (espelha a convenção manual da OPERAÇÃO).
 NOME_XLSX_SAIDA = "Calculo.xlsx"
 NOME_XLSX_SAIDA_QUITADO = "Calculo quitado.xlsx"
 
@@ -351,14 +353,14 @@ def nome_xlsx_saida(quitado: bool = False) -> str:
 NOME_BACEN_PASTA_CLIENTE = "11 Series Temporais.pdf"
 NOME_IMAG_01 = "imag.01.png"
 NOME_IMAG_02 = "imag.02.png"  # v0.7.0: recorte "Parcela c/ Taxa Média e Expurgo" da planilha
-NOME_CONTRATO_PADRAO = "09 Contrato Crefaz.pdf"
+NOME_CONTRATO_PADRAO = "09 Contrato.pdf"
 
 # ─── Sequência de nomes derivada do contrato (v0.9.8) ───────────────────────
-# A Rose numera os arquivos da pasta em sequência. O contrato entra como
-# "NN Contrato Crefaz FULANO.pdf"; as saídas seguem consecutivas:
+# A OPERAÇÃO numera os arquivos da pasta em sequência. O contrato entra como
+# "NN Contrato Revisao FULANO.pdf"; as saídas seguem consecutivas:
 #   Séries Temporais = NN+1   ·   Cálculo (PDF) = NN+2
 # Ex.: 09 Contrato… → 10 Series Temporais.pdf + 11 Calculo.pdf.
-# O XLSX-fonte permanece sem número ("Calculo.xlsx"), por decisão da Rose.
+# O XLSX-fonte permanece sem número ("Calculo.xlsx"), por decisão da OPERAÇÃO.
 REGEX_PREFIXO_NUM = re.compile(r"^\s*(\d{2})\s+")
 
 
@@ -426,5 +428,5 @@ def master_run_log_url() -> str | None:
 
 TOLERANCIA_VALIDACAO_REAIS = 1.00
 PRAZO_MINIMO = 1
-PRAZO_MAXIMO = 24  # ATIVO: Crefaz não opera contratos com mais de 24 parcelas (v0.6.0)
+PRAZO_MAXIMO = 24  # ATIVO: Revisao não opera contratos com mais de 24 parcelas (v0.6.0)
 PRAZO_MAXIMO_QUITADO = 60  # QUITADO: contratos históricos vão até 60 parcelas (v0.9.0)

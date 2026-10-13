@@ -1,4 +1,4 @@
-"""Extrai dados do Item II do contrato Crefaz em PDF."""
+"""Extrai dados do Item II do contrato Revisao em PDF."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from .exceptions import ContratoParseError, ValidacaoContratoWarning
 
 @dataclass
 class DadosContrato:
-    """Dados extraídos do contrato Crefaz."""
+    """Dados extraídos do contrato Revisao."""
 
     # Cabeçalho
     numero_cedula: str
@@ -85,7 +85,7 @@ def _extrair_texto_pdf(pdf_path: Path | bytes) -> str:
 def extrair_item_ii(texto_completo: str) -> str:
     """Recorta o bloco Item II do texto completo.
 
-    v0.6.9: marcadores agora são regex tolerantes a espaço — Crefaz emite
+    v0.6.9: marcadores agora são regex tolerantes a espaço — Revisao emite
     tanto "II.EMPRÉSTIMO CONCEDIDO" quanto "II. EMPRÉSTIMO CONCEDIDO".
     """
     m_inicio = MARCADOR_ITEM_II_INICIO.search(texto_completo)

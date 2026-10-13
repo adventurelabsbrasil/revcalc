@@ -31,22 +31,22 @@ from calculadora_crefaz.exceptions import (
 
 
 def test_norm_remove_acentos():
-    assert _norm("MARLÍ SUELÍ") == "marli sueli"
+    assert _norm("PESSÔA TÊSTE C") == "pessoa teste c"
 
 
 def test_norm_colapsa_espacos():
-    assert _norm("  Marli   Sueli  ") == "marli sueli"
+    assert _norm("  Pessoa Teste C   Sueli  ") == "pessoa teste c sueli"
 
 
 def test_nome_combina_com_e_sem_acento():
     assert _nome_combina(
-        "Marli Sueli Berger Dambrosio",
-        "MARLÍ SUELÍ BERGER DAMBRÓSIO",
+        "Pessoa Teste C Berger",
+        "PESSÔA TÊSTE C BERGER",
     )
 
 
 def test_nome_combina_diferente():
-    assert not _nome_combina("Marli Sueli", "Adriano Luis")
+    assert not _nome_combina("Pessoa Teste C Sueli", "Pessoa Teste B Luis")
 
 
 # ─── _e_contrato ────────────────────────────────────────────────────────────
@@ -54,16 +54,16 @@ def test_nome_combina_diferente():
 
 class TestEContrato:
     def test_padrao_numerado(self):
-        assert _e_contrato("09 Contrato Crefaz.pdf")
+        assert _e_contrato("09 Contrato Revisao.pdf")
 
     def test_sem_numero(self):
-        assert _e_contrato("Contrato Crefaz.pdf")
+        assert _e_contrato("Contrato Revisao.pdf")
 
     def test_com_sufixo(self):
-        assert _e_contrato("09 Contrato Crefaz Adriano.pdf")
+        assert _e_contrato("09 Contrato Revisao Pessoa Teste B.pdf")
 
     def test_case_insensitive(self):
-        assert _e_contrato("09 CONTRATO CREFAZ.pdf")
+        assert _e_contrato("09 CONTRATO REVISAO.pdf")
 
     def test_procuracao_nao_e_contrato(self):
         assert not _e_contrato("01 Procuração.pdf")
@@ -72,7 +72,7 @@ class TestEContrato:
         assert not _e_contrato("02 CNH.pdf")
 
     def test_calculo_nao_e_contrato(self):
-        assert not _e_contrato("10 Cálculo Marli.xlsx")
+        assert not _e_contrato("10 Cálculo Pessoa Teste C.xlsx")
 
     def test_log_nao_e_contrato(self):
         assert not _e_contrato("12 Log.txt")
@@ -84,7 +84,7 @@ class TestEContrato:
         assert not _e_contrato("Kit Procuração.pdf")
 
     def test_copia_excluida(self):
-        assert not _e_contrato("Cópia de 09 Contrato Crefaz.pdf")
+        assert not _e_contrato("Cópia de 09 Contrato Revisao.pdf")
 
     def test_outro_pdf_qualquer(self):
         assert not _e_contrato("documento qualquer.pdf")
@@ -105,8 +105,8 @@ def test_e_bacen_pasta_cliente_copia_ignorada():
 
 def test_e_calculo_existente():
     # Legado numerado
-    assert _e_calculo_existente("10 Cálculo MARLI SUELI.xlsx")
-    assert _e_calculo_existente("10 Calculo MARLI.xlsx")
+    assert _e_calculo_existente("10 Cálculo PESSOA TESTE C SUELI.xlsx")
+    assert _e_calculo_existente("10 Calculo PESSOA TESTE C.xlsx")
     # Nomes novos v0.9.0 (sem número)
     assert _e_calculo_existente("Calculo.xlsx")
     assert _e_calculo_existente("Cálculo.xlsx")
@@ -195,7 +195,7 @@ def _mock_service_drive(estrutura: dict):
 def test_localizar_pasta_no_nivel_1():
     service = _mock_service_drive(
         {
-            "1OciPZU1-C54kRk7C8QWyIGUb8od7mWcN": [
+            "DRIVE_ROOT_TEST_ID": [
                 {
                     "id": "abc",
                     "name": "MARIA DA SILVA",
@@ -212,7 +212,7 @@ def test_localizar_pasta_no_nivel_1():
 def test_localizar_pasta_no_nivel_2_estado():
     service = _mock_service_drive(
         {
-            "1OciPZU1-C54kRk7C8QWyIGUb8od7mWcN": [
+            "DRIVE_ROOT_TEST_ID": [
                 {
                     "id": "rs-id",
                     "name": "10. RIO GRANDE DO SUL",
@@ -221,22 +221,22 @@ def test_localizar_pasta_no_nivel_2_estado():
             ],
             "rs-id": [
                 {
-                    "id": "marli-id",
-                    "name": "MARLÍ SUELÍ BERGER DAMBRÓSIO",
+                    "id": "pessoa_teste_c-id",
+                        "name": "PESSÔA TÊSTE C BERGER",
                     "mimeType": "application/vnd.google-apps.folder",
                 }
             ],
         }
     )
-    pasta = localizar_pasta_cliente(service, "Marli Sueli Berger Dambrosio")
-    assert pasta.id == "marli-id"
+    pasta = localizar_pasta_cliente(service, "Pessoa Teste C Berger")
+    assert pasta.id == "pessoa_teste_c-id"
     assert "RIO GRANDE DO SUL" in pasta.path
 
 
 def test_pasta_nao_encontrada_traz_sugestoes():
     service = _mock_service_drive(
         {
-            "1OciPZU1-C54kRk7C8QWyIGUb8od7mWcN": [
+            "DRIVE_ROOT_TEST_ID": [
                 {
                     "id": "rs-id",
                     "name": "10. RIO GRANDE DO SUL",
@@ -244,7 +244,7 @@ def test_pasta_nao_encontrada_traz_sugestoes():
                 },
                 {
                     "id": "outra",
-                    "name": "MARLI SUELI BERGER",
+                    "name": "PESSOA TESTE C SUELI BERGER",
                     "mimeType": "application/vnd.google-apps.folder",
                 },
             ],
@@ -252,14 +252,14 @@ def test_pasta_nao_encontrada_traz_sugestoes():
         }
     )
     with pytest.raises(PastaNaoEncontrada) as exc:
-        localizar_pasta_cliente(service, "Marli Berger Dambrosio")
+        localizar_pasta_cliente(service, "Pessoa Teste C Berger Dambrosio")
     assert exc.value.sugestoes  # tem ao menos uma sugestão
 
 
 def test_pasta_ambigua_raiz_e_estado():
     service = _mock_service_drive(
         {
-            "1OciPZU1-C54kRk7C8QWyIGUb8od7mWcN": [
+            "DRIVE_ROOT_TEST_ID": [
                 {
                     "id": "raiz-id",
                     "name": "JOAO DA SILVA",
@@ -299,7 +299,7 @@ def test_localizar_contrato_unico():
                 },
                 {
                     "id": "doc-2",
-                    "name": "09 Contrato Crefaz.pdf",
+                    "name": "09 Contrato Revisao.pdf",
                     "mimeType": "application/pdf",
                 },
                 {
@@ -315,19 +315,19 @@ def test_localizar_contrato_unico():
 
 
 def test_localizar_contrato_multiplos_resolve_por_prioridade():
-    # v0.6.x: múltiplos "Contrato Crefaz" não disparam mais erro — o engine escolhe
-    # o canônico por prioridade ("NN Contrato Crefaz.pdf" > não-numerado/antigo).
+    # v0.6.x: múltiplos "Contrato Revisao" não disparam mais erro — o engine escolhe
+    # o canônico por prioridade ("NN Contrato Revisao.pdf" > não-numerado/antigo).
     service = _mock_service_drive(
         {
             "pasta-x": [
                 {
                     "id": "doc-a",
-                    "name": "09 Contrato Crefaz.pdf",
+                    "name": "09 Contrato Revisao.pdf",
                     "mimeType": "application/pdf",
                 },
                 {
                     "id": "doc-b",
-                    "name": "Contrato Crefaz antigo.pdf",
+                    "name": "Contrato Revisao antigo.pdf",
                     "mimeType": "application/pdf",
                 },
             ]
@@ -343,18 +343,18 @@ def test_localizar_contrato_ambiguo_resolvido_com_forcar_nome():
             "pasta-x": [
                 {
                     "id": "doc-a",
-                    "name": "09 Contrato Crefaz.pdf",
+                    "name": "09 Contrato Revisao.pdf",
                     "mimeType": "application/pdf",
                 },
                 {
                     "id": "doc-b",
-                    "name": "Contrato Crefaz antigo.pdf",
+                    "name": "Contrato Revisao antigo.pdf",
                     "mimeType": "application/pdf",
                 },
             ]
         }
     )
-    contrato = localizar_contrato(service, "pasta-x", forcar_nome="09 Contrato Crefaz.pdf")
+    contrato = localizar_contrato(service, "pasta-x", forcar_nome="09 Contrato Revisao.pdf")
     assert contrato.id == "doc-a"
 
 

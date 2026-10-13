@@ -46,7 +46,7 @@ def _agendar_notificacao_founder(s, *, tipo, mensagem, email, origem) -> None:
 
     text = notify.montar_texto_feedback(
         projeto="RevCalc",
-        cliente=getattr(s, "notify_cliente", "Rose Portal Advocacia"),
+        cliente=getattr(s, "notify_cliente", "Operação de Revisão de Contratos"),
         tipo=tipo,
         origem=origem,
         email=email,

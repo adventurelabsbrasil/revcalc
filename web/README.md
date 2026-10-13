@@ -1,4 +1,4 @@
-# Front — Calculadora Crefaz (Next.js / Vercel)
+# Front — Calculadora Revisao (Next.js / Vercel)
 
 UI fina: login Google, campo do nome da cliente, log ao vivo (SSE) e link da
 pasta no Drive. Todo o trabalho pesado está no backend (`../server`).

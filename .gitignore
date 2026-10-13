@@ -20,7 +20,7 @@ tests/fixtures/*.xlsx
 # Local config / secrets
 .env
 .env.local
-~/.calculadora-crefaz/
+~/.calculadora-revisao/
 
 # OS
 .DS_Store

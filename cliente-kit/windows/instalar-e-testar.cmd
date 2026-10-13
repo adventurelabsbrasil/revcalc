@@ -1,9 +1,9 @@
 @echo off
 setlocal
-title Calculadora Crefaz - Instalacao Windows
+title Calculadora Revisao - Instalacao Windows
 
 echo ================================================
-echo  Calculadora Crefaz - Instalacao e Teste (Win)
+echo  Calculadora Revisao - Instalacao e Teste (Win)
 echo ================================================
 echo.
 
@@ -24,12 +24,12 @@ if errorlevel 1 (
 
 echo.
 echo [2/3] Verificando app...
-if exist "%~dp0..\CalculadoraCrefaz.exe" (
-  set "APP=%~dp0..\CalculadoraCrefaz.exe"
-) else if exist "%~dp0CalculadoraCrefaz.exe" (
-  set "APP=%~dp0CalculadoraCrefaz.exe"
+if exist "%~dp0..\RevCalc.exe" (
+  set "APP=%~dp0..\RevCalc.exe"
+) else if exist "%~dp0RevCalc.exe" (
+  set "APP=%~dp0RevCalc.exe"
 ) else (
-  echo [ERRO] CalculadoraCrefaz.exe nao encontrado na pasta esperada.
+  echo [ERRO] RevCalc.exe nao encontrado na pasta esperada.
   echo Coloque o .exe junto com este kit e rode novamente.
   pause
   exit /b 1

@@ -1,6 +1,6 @@
 """Recorte vertical da imag.01 (`_escolher_y_fim`).
 
-Modela os DOIS layouts reais do contrato Crefaz (ativo × quitado) como `line_rows`
+Modela os DOIS layouts reais do contrato Revisao (ativo × quitado) como `line_rows`
 e garante que a âncora inclusiva ("C.E.T. TAXA ANUAL") fecha o bloco EMPRÉSTIMO
 CONCEDIDO corretamente nos dois — fechando o bug em que o contrato ativo varava
 para a seção "III. CUSTO EFETIVO TOTAL" (v0.9.6).

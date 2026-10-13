@@ -55,7 +55,7 @@ class DadosPlanilha:
 def _titulo_operacao(contrato: DadosContrato) -> str:
     return (
         f"CÁLCULOS DA OPERAÇÃO Nº {contrato.numero_cedula} - "
-        f"CLIENTE: {contrato.nome_emitente.upper()} x BANCO CREFAZ"
+        f"CLIENTE: {contrato.nome_emitente.upper()} x INSTITUIÇÃO FINANCEIRA"
     )
 
 
@@ -156,7 +156,7 @@ def _ocultar_linhas_excedentes(ws, aba: str, prazo: int) -> None:
     As 3 tabelas (PARCELAS CONFORME O CONTRATO / RECALCULADAS / VALORES PAGOS)
     dividem um range físico fixo por aba; as fórmulas já esvaziam o excedente, mas
     as linhas em branco continuavam visíveis com bordas. Fecha a tabela em
-    exatamente N linhas = nº de parcelas do contrato (feedback Rose/Bruna v0.9.7).
+    exatamente N linhas = nº de parcelas do contrato (feedback OPERAÇÃO/Pessoa usuária v0.9.7).
     Parcela N ocupa a linha `início + N - 1`; oculta de `início + prazo` até o fim.
     """
     faixa = _RANGE_PARCELAS_POR_ABA.get(aba)

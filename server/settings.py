@@ -113,5 +113,5 @@ def get_settings() -> Settings:
             for n in re.split(r"[;,]", os.environ.get("REVCALC_FOUNDER_NOTIFY_WA", ""))
             if n.strip()
         ),
-        notify_cliente=(os.environ.get("REVCALC_NOTIFY_CLIENTE") or "Rose Portal Advocacia").strip(),
+        notify_cliente=(os.environ.get("REVCALC_NOTIFY_CLIENTE") or "Operação de Revisão de Contratos").strip(),
     )

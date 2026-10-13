@@ -1,6 +1,6 @@
-# Calculadora Crefaz - Guia de Instalacao e Teste (Usuario Final)
+# Calculadora Revisao - Guia de Instalacao e Teste (Usuario Final)
 
-Este guia e para o usuario final que vai instalar e usar a Calculadora Crefaz.
+Este guia e para o usuario final que vai instalar e usar a Calculadora Revisao.
 
 ## 0) Onde baixar
 
@@ -14,8 +14,8 @@ Status atual da pagina de Releases:
 
 ## 1) Arquivos que voce deve receber
 
-- `CalculadoraCrefaz.exe` (Windows)
-- `CalculadoraCrefaz.app` (macOS)
+- `RevCalc.exe` (Windows)
+- `RevCalc.app` (macOS)
 - `windows/instalar-e-testar.cmd`
 - `macos/instalar-e-testar.command`
 
@@ -23,7 +23,7 @@ Status atual da pagina de Releases:
 
 - Internet ativa
 - Conta Google autorizada
-- Pasta de trabalho no Drive com `09 Contrato Crefaz.pdf`
+- Pasta de trabalho no Drive com `09 Contrato Revisao.pdf`
 - LibreOffice instalado (necessario para gerar os arquivos de print PDF/PNG)
 
 ## 3) Windows - instalacao
@@ -42,7 +42,7 @@ No CMD (administrador):
 winget install --id TheDocumentFoundation.LibreOffice -e --source winget
 ```
 
-Depois abra `CalculadoraCrefaz.exe`.
+Depois abra `RevCalc.exe`.
 
 ## 4) macOS - instalacao
 
@@ -59,12 +59,12 @@ No Terminal:
 brew install --cask libreoffice
 ```
 
-Depois abra `CalculadoraCrefaz.app`.
+Depois abra `RevCalc.app`.
 Na primeira vez: botao direito -> Abrir -> Abrir mesmo assim.
 
 ## 5) Como testar apos instalar
 
-1. Abra a Calculadora Crefaz
+1. Abra a Calculadora Revisao
 2. Clique em "Entrar com Google"
 3. Digite o nome completo da cliente
 4. Clique em "Calcular"
@@ -76,7 +76,7 @@ Na primeira vez: botao direito -> Abrir -> Abrir mesmo assim.
 ## 6) Problemas comuns
 
 - "Pasta nao encontrada": nome digitado diferente da pasta no Drive
-- "Contrato nao encontrado": arquivo precisa estar como `09 Contrato Crefaz.pdf`
+- "Contrato nao encontrado": arquivo precisa estar como `09 Contrato Revisao.pdf`
 - "Capturas nao geradas": LibreOffice nao instalado/detectado
 
 ## 7) Suporte

@@ -38,8 +38,9 @@ from .exceptions import (
 
 logger = logging.getLogger(__name__)
 
-# Nome deve conter explicitamente "Contrato Crefaz" (evita outro tipo de contrato na pasta).
-REGEX_CONTEM_CONTRATO_CREFAZ = re.compile(r"contrato\s+crefaz", re.IGNORECASE)
+# O nome deve conter "contrato"; marcas comerciais ficam configuráveis no
+# Drive privado e não são necessárias para identificar o documento.
+REGEX_CONTEM_CONTRATO = re.compile(r"\bcontrato\b", re.IGNORECASE)
 
 MIME_FOLDER = "application/vnd.google-apps.folder"
 MIME_PDF = "application/pdf"
@@ -63,7 +64,7 @@ class ArquivoDrive:
 class PastaCliente:
     id: str
     nome_real: str  # nome como aparece no Drive
-    path: str  # ex: "EMPRESTIMO DE ENERGIA/10. RIO GRANDE DO SUL/MARLI..."
+    path: str  # ex: "EMPRESTIMO DE ENERGIA/10. RIO GRANDE DO SUL/PESSOA TESTE C..."
 
 
 # ─── Helpers de normalização ────────────────────────────────────────────────
@@ -180,38 +181,38 @@ def listar_subpastas(service, pasta: PastaCliente) -> list[PastaCliente]:
 # ─── Identificação de arquivos ──────────────────────────────────────────────
 
 
-def _prioridade_contrato_crefaz(nome: str) -> tuple:
+def _prioridade_contrato(nome: str) -> tuple:
     """Ordem de preferência menor = melhor. Empate final pelo nome (estável).
 
-    1) ``NN Contrato Crefaz.pdf`` — só o padrão numerado, sem texto extra
-    2) ``NN Contrato Crefaz <resto>.pdf`` — numerado com sufixo (ex.: nome do cliente)
-    3) ``Contrato Crefaz.pdf`` — sem número
-    4) ``Contrato Crefaz <resto>.pdf`` — não numerado com sufixo (ex.: antigo)
+    1) ``NN Contrato Revisao.pdf`` — só o padrão numerado, sem texto extra
+    2) ``NN Contrato Revisao <resto>.pdf`` — numerado com sufixo (ex.: nome do cliente)
+    3) ``Contrato Revisao.pdf`` — sem número
+    4) ``Contrato Revisao <resto>.pdf`` — não numerado com sufixo (ex.: antigo)
     """
     nl = nome.strip().lower()
-    m = re.match(r"^(\d{2})\s+contrato\s+crefaz\.pdf$", nl)
+    m = re.match(r"^(\d{2})\s+contrato\.pdf$", nl)
     if m:
         return (0, int(m.group(1)), nome)
-    m = re.match(r"^(\d{2})\s+contrato\s+crefaz\s+(.+)\.pdf$", nl)
+    m = re.match(r"^(\d{2})\s+contrato\s+(.+)\.pdf$", nl)
     if m:
         return (1, int(m.group(1)), nome)
-    if nl == "contrato crefaz.pdf":
+    if nl == "contrato.pdf":
         return (2, 0, nome)
-    m = re.match(r"^contrato\s+crefaz\s+(.+)\.pdf$", nl)
+    m = re.match(r"^contrato\s+(.+)\.pdf$", nl)
     if m:
         return (3, 0, nome)
     return (4, 0, nome)
 
 
 def _e_contrato(nome: str) -> bool:
-    """True se o nome bate algum padrão de contrato Crefaz e não é prefixo auxiliar."""
+    """True se o nome bate algum padrão de contrato Revisao e não é prefixo auxiliar."""
     nome_lower = nome.lower()
     if REGEX_COPIA.match(nome):
         return False
     for prefixo in PREFIXOS_NAO_CONTRATO:
         if nome_lower.startswith(prefixo):
             return False
-    if not REGEX_CONTEM_CONTRATO_CREFAZ.search(nome):
+    if not REGEX_CONTEM_CONTRATO.search(nome):
         return False
     return any(rx.match(nome) for rx in REGEX_CONTRATO)
 
@@ -227,11 +228,11 @@ def _e_calculo_existente(nome: str) -> bool:
 
 
 def localizar_contrato(service, pasta_id: str, forcar_nome: Optional[str] = None) -> ArquivoDrive:
-    """Encontra o PDF do contrato Crefaz na pasta.
+    """Encontra o PDF do contrato Revisao na pasta.
 
-    O nome deve conter **Contrato Crefaz** (duas palavras). Se houver vários,
-    aplica prioridade: ``NN Contrato Crefaz.pdf`` (sem sufixo) > numerado com
-    sufixo > ``Contrato Crefaz.pdf`` > outros.
+    O nome deve conter **Contrato Revisao** (duas palavras). Se houver vários,
+    aplica prioridade: ``NN Contrato Revisao.pdf`` (sem sufixo) > numerado com
+    sufixo > ``Contrato Revisao.pdf`` > outros.
 
     `forcar_nome`: se passado, usa exatamente esse arquivo (match exato do nome)
     e ignora a heurística.
@@ -250,16 +251,16 @@ def localizar_contrato(service, pasta_id: str, forcar_nome: Optional[str] = None
 
     if not candidatos:
         raise ContratoNaoEncontrado(
-            "Nenhum PDF na pasta casa o padrão de contrato Crefaz. "
-            "Renomeie o contrato para '09 Contrato Crefaz.pdf' antes de processar."
+            "Nenhum PDF na pasta casa o padrão de contrato Revisao. "
+            "Renomeie o contrato para '09 Contrato Revisao.pdf' antes de processar."
         )
 
-    candidatos.sort(key=lambda a: _prioridade_contrato_crefaz(a["name"]))
+    candidatos.sort(key=lambda a: _prioridade_contrato(a["name"]))
     escolhido = candidatos[0]
     if len(candidatos) > 1:
         outros = [a["name"] for a in candidatos[1:]]
         logger.warning(
-            "Vários PDFs 'Contrato Crefaz' na pasta — usando '%s' (prioridade sobre: %s)",
+            "Vários PDFs 'Contrato Revisao' na pasta — usando '%s' (prioridade sobre: %s)",
             escolhido["name"],
             outros,
         )

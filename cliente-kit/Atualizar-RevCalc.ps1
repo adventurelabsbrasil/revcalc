@@ -3,6 +3,13 @@ $Repo = "adventurelabsbrasil/revcalc"
 $InstallRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $CurrentVersion = "0.9.14"
 
+try { & py -3.11 --version *> $null; $pythonOk = ($LASTEXITCODE -eq 0) } catch { $pythonOk = $false }
+if (-not $pythonOk) {
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw "Python 3.11+ não encontrado e winget não está disponível." }
+    & winget install --id Python.Python.3.11 -e --accept-source-agreements --accept-package-agreements
+    if ($LASTEXITCODE -ne 0) { throw "A instalação do Python falhou." }
+}
+
 $tags = Invoke-RestMethod -Headers @{ "User-Agent" = "AdventureLabs-RevCalc-Updater" } `
     -Uri "https://api.github.com/repos/$Repo/tags?per_page=30"
 $latest = $tags.name | Where-Object { $_ -match '^v\d+\.\d+\.\d+$' } |
@@ -33,6 +40,7 @@ if (Test-Path $envBackup) { Copy-Item $envBackup $envFile -Force }
 
 Push-Location $InstallRoot
 try {
+    if (-not (Test-Path ".venv\Scripts\python.exe")) { & py -3.11 -m venv .venv }
     & .\.venv\Scripts\python.exe -m pip install --upgrade pip
     & .\.venv\Scripts\python.exe -m pip install -e "."
     Write-Host "Atualização concluída. .env preservado." -ForegroundColor Green

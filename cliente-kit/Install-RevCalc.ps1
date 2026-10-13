@@ -1,3 +1,5 @@
+param([switch]$InstallLibreOffice)
+
 $ErrorActionPreference = "Stop"
 
 $Version = "0.9.14"
@@ -6,13 +8,29 @@ $ZipPath = Join-Path $env:TEMP "revcalc-$Version.zip"
 $ExtractRoot = Join-Path $env:TEMP "revcalc-$Version-extract"
 $RepoZip = "https://github.com/adventurelabsbrasil/revcalc/archive/refs/tags/v$Version.zip"
 
-function Require-Command([string]$Name, [string]$Hint) {
-    if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) { throw "$Name não encontrado. $Hint" }
+function Ensure-Python {
+    $ok = $false
+    try { & py -3.11 --version *> $null; $ok = ($LASTEXITCODE -eq 0) } catch { $ok = $false }
+    if ($ok) { return }
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        throw "Python 3.11+ não encontrado e winget não está disponível. Instale Python manualmente."
+    }
+    Write-Host "Python 3.11 não encontrado. Instalando via winget..."
+    & winget install --id Python.Python.3.11 -e --accept-source-agreements --accept-package-agreements
+    if ($LASTEXITCODE -ne 0) { throw "A instalação do Python falhou." }
+    try { & py -3.11 --version *> $null } catch { throw "Python foi instalado, mas o launcher py não está disponível. Feche e abra o PowerShell e execute novamente." }
+    if ($LASTEXITCODE -ne 0) { throw "Python foi instalado, mas o launcher py não está disponível. Feche e abra o PowerShell e execute novamente." }
+}
+
+function Ensure-LibreOffice {
+    if (Get-Command soffice -ErrorAction SilentlyContinue) { return }
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw "winget não disponível para instalar o LibreOffice." }
+    & winget install --id TheDocumentFoundation.LibreOffice -e --accept-source-agreements --accept-package-agreements
 }
 
 Write-Host "RevCalc v$Version — instalação local (sem servidor)" -ForegroundColor Cyan
-Require-Command "py" "Instale Python 3.11+ e marque 'Add python.exe to PATH'."
-if ($LASTEXITCODE -ne 0) { throw "Python 3.11 não encontrado." }
+Ensure-Python
+if ($InstallLibreOffice) { Ensure-LibreOffice }
 
 if (Test-Path $ExtractRoot) { Remove-Item $ExtractRoot -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $ExtractRoot | Out-Null

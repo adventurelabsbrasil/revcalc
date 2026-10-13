@@ -1,6 +1,11 @@
 $ErrorActionPreference = "Stop"
 $Repo = "adventurelabsbrasil/revcalc"
-$InstallRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$InstallRoot = if ((Split-Path -Leaf $ScriptRoot) -eq "cliente-kit") {
+    Split-Path -Parent $ScriptRoot
+} else {
+    $ScriptRoot
+}
 $CurrentVersion = "0.9.14"
 
 try { & py -3.11 --version *> $null; $pythonOk = ($LASTEXITCODE -eq 0) } catch { $pythonOk = $false }

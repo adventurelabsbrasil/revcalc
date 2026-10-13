@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "client_type": "desktop",
+  "desktop_client_id": "<CLIENT_ID_DESKTOP>.apps.googleusercontent.com",
+  "allowed_domains": ["client.example"],
+  "drive_root_id": "<DRIVE_ROOT_ID>",
+  "bacen_folder_id": "<BACEN_FOLDER_ID>",
+  "bacen_new_folder_id": "<OPTIONAL_BACEN_NEW_FOLDER_ID>"
+}

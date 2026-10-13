@@ -1,63 +1,46 @@
-param([switch]$InstallLibreOffice)
-
+﻿param(
+    [switch]$InstallLibreOffice,
+    [string]$Version = "0.9.15",
+    [string]$ProfilePath,
+    [string]$ArchivePath,
+    [string]$BaseRoot = (Join-Path $env:LOCALAPPDATA "AdventureLabs\RevCalc"),
+    [string]$ExistingRoot
+)
 $ErrorActionPreference = "Stop"
-
-$Version = "0.9.14"
-$InstallRoot = Join-Path $env:LOCALAPPDATA "AdventureLabs\RevCalc\$Version"
-$ZipPath = Join-Path $env:TEMP "revcalc-$Version.zip"
-$ExtractRoot = Join-Path $env:TEMP "revcalc-$Version-extract"
-$RepoZip = "https://github.com/adventurelabsbrasil/revcalc/archive/refs/tags/v$Version.zip"
-
+. (Join-Path $PSScriptRoot "RevCalc-Installation.ps1")
+if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Versão inválida." }
 function Ensure-Python {
-    $ok = $false
-    try { & py -3.11 --version *> $null; $ok = ($LASTEXITCODE -eq 0) } catch { $ok = $false }
-    if ($ok) { return }
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        throw "Python 3.11+ não encontrado e winget não está disponível. Instale Python manualmente."
-    }
-    Write-Host "Python 3.11 não encontrado. Instalando via winget..."
+    try { & py -3.11 --version *> $null; if ($LASTEXITCODE -eq 0) { return } } catch {}
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw "Instale Python 3.11 com o launcher py e execute novamente." }
     & winget install --id Python.Python.3.11 -e --accept-source-agreements --accept-package-agreements
     if ($LASTEXITCODE -ne 0) { throw "A instalação do Python falhou." }
-    try { & py -3.11 --version *> $null } catch { throw "Python foi instalado, mas o launcher py não está disponível. Feche e abra o PowerShell e execute novamente." }
-    if ($LASTEXITCODE -ne 0) { throw "Python foi instalado, mas o launcher py não está disponível. Feche e abra o PowerShell e execute novamente." }
+    try { & py -3.11 --version *> $null } catch { throw "Reabra o PowerShell para usar o launcher py." }
+    if ($LASTEXITCODE -ne 0) { throw "Reabra o PowerShell para usar o launcher py." }
 }
-
-function Ensure-LibreOffice {
-    if (Get-Command soffice -ErrorAction SilentlyContinue) { return }
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw "winget não disponível para instalar o LibreOffice." }
-    & winget install --id TheDocumentFoundation.LibreOffice -e --accept-source-agreements --accept-package-agreements
-}
-
-Write-Host "RevCalc v$Version — instalação local (sem servidor)" -ForegroundColor Cyan
+Write-Host "RevCalc v$Version — instalação local" -ForegroundColor Cyan
 Ensure-Python
-if ($InstallLibreOffice) { Ensure-LibreOffice }
-
-if (Test-Path $ExtractRoot) { Remove-Item $ExtractRoot -Recurse -Force }
-New-Item -ItemType Directory -Force -Path $ExtractRoot | Out-Null
-Invoke-WebRequest -Uri $RepoZip -OutFile $ZipPath
-Expand-Archive -Path $ZipPath -DestinationPath $ExtractRoot -Force
-
-$SourceRoot = Join-Path $ExtractRoot "revcalc-$Version"
-if (-not (Test-Path (Join-Path $SourceRoot "pyproject.toml"))) { throw "Download inválido." }
-if (Test-Path $InstallRoot) { Remove-Item $InstallRoot -Recurse -Force }
-New-Item -ItemType Directory -Force -Path (Split-Path $InstallRoot) | Out-Null
-Move-Item -Path $SourceRoot -Destination $InstallRoot
-
-Push-Location $InstallRoot
+if ($InstallLibreOffice -and -not (Get-Command soffice -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw "winget indisponível para instalar LibreOffice." }
+    & winget install --id TheDocumentFoundation.LibreOffice -e --accept-source-agreements --accept-package-agreements
+    if ($LASTEXITCODE -ne 0) { throw "A instalação do LibreOffice falhou." }
+}
+# Unique temporary directory contains code only, never .env or tokens.
+$tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+$downloadRoot = Assert-RevCalcChildPath (Join-Path $tempRoot ("revcalc-download-" + [guid]::NewGuid().ToString("N"))) $tempRoot
+New-Item -ItemType Directory -Path $downloadRoot | Out-Null
 try {
-    & py -3.11 -m venv .venv
-    & .\.venv\Scripts\python.exe -m pip install --upgrade pip
-    & .\.venv\Scripts\python.exe -m pip install -e "."
-    if (-not (Test-Path ".env")) {
-        Copy-Item ".env.example" ".env"
-        Write-Warning "Preencha .env com as credenciais Google antes da primeira execução."
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $zipPath = Join-Path $downloadRoot "release.zip"
+    if ($ArchivePath) {
+        Copy-Item -LiteralPath (Resolve-Path -LiteralPath $ArchivePath).Path -Destination $zipPath
+    } else {
+        Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/adventurelabsbrasil/revcalc/archive/refs/tags/v$Version.zip" -OutFile $zipPath
     }
-    @'
-$ErrorActionPreference = "Stop"
-Set-Location $PSScriptRoot
-& .\.venv\Scripts\python.exe -m calculadora_crefaz
-if ($LASTEXITCODE -ne 0) { Read-Host "RevCalc encerrou com erro. Pressione Enter" }
-'@ | Set-Content -Path (Join-Path $InstallRoot "Executar-RevCalc.ps1") -Encoding UTF8
-    Write-Host "Instalação concluída em: $InstallRoot" -ForegroundColor Green
-    Write-Host "Edite .env e execute Executar-RevCalc.ps1."
-} finally { Pop-Location }
+    Expand-Archive -LiteralPath $zipPath -DestinationPath $downloadRoot
+    $source = Join-Path $downloadRoot "revcalc-$Version"
+    if (-not (Test-Path -LiteralPath (Join-Path $source "pyproject.toml"))) { throw "Pacote inválido." }
+    Install-RevCalcRelease -SourceRoot $source -BaseRoot $BaseRoot -Version $Version -ProfilePath $ProfilePath -ExistingRoot $ExistingRoot | Out-Null
+} finally {
+    $checkedDownload = Assert-RevCalcChildPath $downloadRoot $tempRoot
+    if (Test-Path -LiteralPath $checkedDownload) { Remove-Item -LiteralPath $checkedDownload -Recurse -Force }
+}

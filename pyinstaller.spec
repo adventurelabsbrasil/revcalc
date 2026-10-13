@@ -23,6 +23,16 @@ datas = [
 # google-api-python-client carrega arquivos JSON em runtime via discovery
 datas += collect_data_files("googleapiclient")
 
+# A tenant kit may supply a non-confidential desktop profile. Never bundle .env.
+if os.path.isfile("revcalc-desktop.json"):
+    import sys
+    sys.path.insert(0, "src")
+    import json
+    from calculadora_crefaz.desktop_config import validate_profile
+    with open("revcalc-desktop.json", encoding="utf-8-sig") as profile:
+        validate_profile(json.load(profile))
+    datas.append(("revcalc-desktop.json", "."))
+
 a = Analysis(
     ["src/calculadora_crefaz/__main__.py"],
     pathex=["src"],

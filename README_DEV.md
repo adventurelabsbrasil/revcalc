@@ -57,7 +57,7 @@ GOOGLE_OAUTH_CLIENT_ID=<from Google Cloud Console>
 GOOGLE_OAUTH_CLIENT_SECRET=<from Google Cloud Console>
 ```
 
-OAuth client deve ser tipo **Desktop**, no projeto `example.invalid` (workspace internal). Domínios autorizados em `config.py`: `example.invalid` + `adventurelabs.com.br`.
+OAuth client deve ser tipo **Desktop**, no projeto Google Cloud `adventurelabs-revcalc-prod` (Workspace Adventure). A configuração validada para Windows está documentada em [`docs/OAUTH_WINDOWS.md`](docs/OAUTH_WINDOWS.md). Nunca registre os valores reais no repositório.
 
 ---
 

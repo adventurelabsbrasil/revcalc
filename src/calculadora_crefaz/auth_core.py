@@ -9,6 +9,7 @@ do SO). auth.py re-exporta estes nomes para manter compatibilidade.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -36,6 +37,8 @@ def _email_do_token(creds: Credentials) -> str:
 
 
 def _validar_dominio(email: str) -> None:
+    if not isinstance(email, str) or not re.fullmatch(r"[^\s@]+@[^\s@]+", email):
+        raise AuthError("Email da conta Google inválido.")
     dominio = email.split("@", 1)[-1].lower()
     if dominio not in DOMINIOS_PERMITIDOS:
         raise AuthError(

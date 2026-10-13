@@ -62,3 +62,17 @@ jobs:
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+
+  windows-auth-install:
+    name: OAuth desktop + Windows PowerShell 5.1
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install test dependencies
+        run: pip install -e ".[web]" pytest pytest-mock
+      - name: Test desktop, web OAuth and installer preservation
+        run: python -m pytest tests/test_auth.py tests/test_desktop_oauth.py tests/test_desktop_config.py tests/test_web_oauth.py tests/test_windows_installation.py

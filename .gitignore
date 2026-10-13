@@ -27,3 +27,5 @@ tests/fixtures/*.xlsx
 Thumbs.db
 .vercel
 .claude/
+.venv/
+revcalc-desktop.json

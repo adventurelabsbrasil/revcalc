@@ -1,6 +1,6 @@
 [project]
 name = "calculadora-revisao"
-version = "0.9.14"
+version = "0.9.15"
 description = "Calculadora de Ação Revisao — Operação de Revisão de Contratos (MVP)"
 requires-python = ">=3.11"
 authors = [

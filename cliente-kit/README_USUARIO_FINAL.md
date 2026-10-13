@@ -2,6 +2,11 @@
 
 Este guia e para o usuario final que vai instalar e usar a Calculadora Revisao.
 
+Para Windows v0.9.15 com login Google sem editar .env, siga
+[Instalação local no Windows](README_WINDOWS_LOCAL.md). Receba o perfil pronto
+da Adventure. As instruções de binário abaixo são para kits legados; uma nova
+release/configuração precisa ser publicada antes da distribuição do novo kit.
+
 ## 0) Onde baixar
 
 - Repositorio: [https://github.com/adventurelabsbrasil/revcalc](https://github.com/adventurelabsbrasil/revcalc)

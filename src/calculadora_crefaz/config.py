@@ -6,19 +6,22 @@ import sys
 from datetime import date
 from pathlib import Path
 
+from .desktop_config import setting
+
 # ─── Drive ──────────────────────────────────────────────────────────────────
 
 # Pasta-mãe "EMPRESTIMO DE ENERGIA" no Drive (layout do tenant)
-PASTA_MAE_ID = os.environ.get("REVCALC_PASTA_MAE_ID", "DRIVE_ROOT_TEST_ID")
+PASTA_MAE_ID = setting("REVCALC_PASTA_MAE_ID", "DRIVE_ROOT_TEST_ID", "drive_root_id")
 
 # Pasta "Série do Bacen" dentro de "EMPRESTIMO DE ENERGIA/03. MODELOS/"
-PASTA_BACEN_ID = os.environ.get("REVCALC_PASTA_BACEN_ID", "DRIVE_BACEN_TEST_ID")
+PASTA_BACEN_ID = setting("REVCALC_PASTA_BACEN_ID", "DRIVE_BACEN_TEST_ID", "bacen_folder_id")
 
 # A partir de 01/11/2025 o BCB passou a disponibilizar a série equivalente
 # sem garantias reais em um PDF separado, com códigos SGS novos.
-PASTA_BACEN_NOV_2025_ID = os.environ.get(
+PASTA_BACEN_NOV_2025_ID = setting(
     "REVCALC_PASTA_BACEN_NOV_2025_ID",
     "DRIVE_BACEN_NEW_TEST_ID",
+    "bacen_new_folder_id",
 )
 NOME_ARQUIVO_BACEN_NOV_2025 = "SGS - Sistema Gerenciador de Séries Temporais.pdf"
 DATA_MUDANCA_SERIES_BACEN = date(2025, 11, 1)
@@ -39,7 +42,7 @@ OAUTH_SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 # Domínios autorizados a logar — externalizável via env REVCALC_DOMINIOS_PERMITIDOS.
-_DOMINIOS_ENV = os.environ.get("REVCALC_DOMINIOS_PERMITIDOS", "").strip()
+_DOMINIOS_ENV = setting("REVCALC_DOMINIOS_PERMITIDOS", "", "allowed_domains")
 DOMINIOS_PERMITIDOS = (
     tuple(d.strip().lower() for d in _DOMINIOS_ENV.split(",") if d.strip())
     if _DOMINIOS_ENV
@@ -389,17 +392,7 @@ def nome_series_temporais(seq_contrato: int | None) -> str:
 
 def _env_from_dotenv(name: str) -> str:
     """Lê env ou `.env` na raiz do projeto calculadora (mesmo critério que `auth`)."""
-    val = os.environ.get(name)
-    if val is not None:
-        return val.strip()
-    raiz = Path(__file__).resolve().parents[2]
-    env_path = raiz / ".env"
-    if env_path.exists():
-        for linha in env_path.read_text().splitlines():
-            linha = linha.strip()
-            if linha.startswith(f"{name}="):
-                return linha.split("=", 1)[1].strip().strip('"').strip("'")
-    return ""
+    return setting(name)
 
 
 def master_run_log_spreadsheet_id() -> str | None:

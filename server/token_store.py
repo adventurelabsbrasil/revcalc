@@ -202,6 +202,13 @@ def load(email: str) -> Optional[Credentials]:
 
 def carregar_sessao(email: str) -> Optional[SessaoAutenticada]:
     """Conveniência: Credentials válidas → SessaoAutenticada (o que o pipeline espera)."""
+    from calculadora_crefaz.auth_core import _validar_dominio
+    from calculadora_crefaz.exceptions import AuthError
+
+    try:
+        _validar_dominio(email)
+    except AuthError:
+        return None
     creds = load(email)
     if not creds:
         return None

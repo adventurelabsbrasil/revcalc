@@ -11,8 +11,8 @@ Este kit instala o RevCalc localmente. O processamento não depende do `revcalc-
 powershell -ExecutionPolicy Bypass -File .\Install-RevCalc.ps1
 ```
 
-4. Preencha o `.env` criado em `%LOCALAPPDATA%\AdventureLabs\RevCalc\0.9.14` com as credenciais Google fornecidas pela Adventure.
-5. Execute `Executar-RevCalc.ps1` na pasta instalada.
+3. Preencha o `.env` criado em `%LOCALAPPDATA%\AdventureLabs\RevCalc\0.9.14` com as credenciais Google fornecidas pela Adventure.
+4. Execute `Executar-RevCalc.ps1` na pasta instalada.
 
 O instalador cria um ambiente virtual e instala automaticamente todas as dependências Python do projeto. Para instalar também o LibreOffice e habilitar as capturas PDF/PNG:
 
@@ -22,7 +22,7 @@ powershell -ExecutionPolicy Bypass -File .\Install-RevCalc.ps1 -InstallLibreOffi
 
 ## Atualizar
 
-Quando uma nova tag `vX.Y.Z` for publicada, execute `Atualizar-RevCalc.ps1`. Ele consulta o mirror, pede confirmação, preserva o `.env` e atualiza o código e as dependências.
+Quando uma nova tag `vX.Y.Z` for publicada, execute `cliente-kit\Atualizar-RevCalc.ps1` a partir da instalação local. Ele consulta o mirror, pede confirmação, preserva o `.env` e atualiza o código e as dependências.
 
 LibreOffice é opcional; sem ele o cálculo/XLSX funciona, mas capturas PDF/PNG podem não ser geradas.
 

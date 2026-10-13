@@ -74,7 +74,7 @@ def _email_da_sessao(request: Request) -> Optional[str]:
 
 def create_app() -> FastAPI:
     s = get_settings()
-    app = FastAPI(title="Calculadora Crefaz — API", version=ENGINE_VERSION)
+    app = FastAPI(title="RevCalc — API de Revisão de Contratos", version=ENGINE_VERSION)
 
     app.add_middleware(
         CORSMiddleware,

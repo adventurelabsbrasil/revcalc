@@ -35,6 +35,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[web]" pytest pytest-mock
 
+      - name: Privacy scan
+        run: bash tools/privacy-scan.sh
+
       - name: Run tests
         run: pytest
 

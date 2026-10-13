@@ -41,7 +41,7 @@ class PastaAmbigua(CalculadoraError):
 
 
 class ContratoNaoEncontrado(CalculadoraError):
-    """Nenhum PDF na pasta casa o padrão de Contrato Crefaz."""
+    """Nenhum PDF na pasta casa o padrão de Contrato Revisao."""
 
 
 class ContratoAmbiguo(CalculadoraError):

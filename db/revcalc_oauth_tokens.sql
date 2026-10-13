@@ -1,6 +1,6 @@
 -- revcalc_oauth_tokens — token store OAuth do app, backend "supabase" (HA ativo/ativo).
 --
--- Projeto Supabase canônico: ftctmseyrqhckutpfdeq (Adventure).
+-- Projeto Supabase canônico: SUPABASE_PROJECT_ID (Adventure).
 -- O backend FastAPI (server/token_store.py) faz UPSERT/SELECT/DELETE via PostgREST
 -- com a ANON key (server-side, NUNCA no browser) — mesmo padrão de feedback.py.
 --
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS public.revcalc_oauth_tokens (
   updated_at      timestamptz NOT NULL DEFAULT now()    -- refrescado no UPSERT (merge-duplicates)
 );
 
-COMMENT ON TABLE  public.revcalc_oauth_tokens IS 'Token store OAuth cifrado do revcalc (Rose), backend supabase p/ HA ativo/ativo xeon+beelink. Só ciphertext; chave Fernet vive nos backends (SESSION_SECRET).';
+COMMENT ON TABLE  public.revcalc_oauth_tokens IS 'Token store OAuth cifrado do revcalc (OPERAÇÃO), backend supabase p/ HA ativo/ativo xeon+beelink. Só ciphertext; chave Fernet vive nos backends (SESSION_SECRET).';
 COMMENT ON COLUMN public.revcalc_oauth_tokens.encrypted_creds IS 'Fernet ciphertext de Credentials.to_json() (refresh+access token do Google). Indecifrável sem SESSION_SECRET.';
 
 ALTER TABLE public.revcalc_oauth_tokens ENABLE ROW LEVEL SECURITY;

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class CalculadoraApp:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title(f"Calculadora Crefaz v{__version__}")
+        self.root.title(f"RevCalc — Calculadora de Revisão de Contratos v{__version__}")
         self.root.geometry("700x550")
         self.root.minsize(600, 450)
 
@@ -53,7 +53,7 @@ class CalculadoraApp:
 
         self._footer = ttk.Label(
             self.root,
-            text=f"© 2026 Adventure Labs · Rose Portal Advocacia · v{__version__}",
+            text=f"© 2026 Adventure Labs · Operação de Revisão de Contratos · v{__version__}",
             font=("TkDefaultFont", 9),
             foreground="#555555",
         )
@@ -121,11 +121,11 @@ class CalculadoraApp:
 
     def _mostrar_sobre(self) -> None:
         messagebox.showinfo(
-            "Sobre a Calculadora Crefaz",
-            f"Calculadora de Ação Crefaz\n"
+            "Sobre o RevCalc",
+            f"Calculadora de Revisão de Contratos\n"
             f"Versão {__version__}\n\n"
             "Desenvolvida pela Adventure Labs\n"
-            "para a Rose Portal Advocacia.\n\n"
+            "para a Operação de Revisão de Contratos.\n\n"
             "© 2026 Adventure Labs\n"
             "adventurelabs.com.br",
         )

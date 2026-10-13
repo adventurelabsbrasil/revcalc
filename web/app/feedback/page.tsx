@@ -69,7 +69,7 @@ export default function FeedbackPage() {
     <main>
       <div className="topbar">
         <span>
-          Rose Portal Advocacia
+          Operação de Revisão de Contratos
           {ver && <small style={{ opacity: 0.6, marginLeft: 8 }}>v{ver}</small>}
         </span>
         <Link className="link" href="/">

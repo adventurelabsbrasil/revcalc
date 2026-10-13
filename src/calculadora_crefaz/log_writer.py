@@ -37,8 +37,8 @@ class DadosLog:
 
     dados_planilha: DadosPlanilha
     usuario_email: str
-    pasta_drive_path: str  # ex: "EMPRESTIMO DE ENERGIA/10. RIO GRANDE DO SUL/MARLI..."
-    contrato_arquivo: str  # ex: "09 Contrato Crefaz.pdf"
+    pasta_drive_path: str  # ex: "EMPRESTIMO DE ENERGIA/10. RIO GRANDE DO SUL/PESSOA TESTE C..."
+    contrato_arquivo: str  # ex: "09 Contrato Revisao.pdf"
     bacen_origem: OrigemBacen
     bacen_mes: int
     bacen_ano: int
@@ -211,7 +211,7 @@ CAPTURAS
 --------
 Geradas automaticamente na pasta da cliente (quando LibreOffice disponível):
   - 13 Print {dados.aba_template}.pdf — impressão da planilha completa (PDF)
-  - imag.01.png — trecho Item II do PDF do contrato Crefaz
+  - imag.01.png — trecho Item II do PDF do contrato Revisao
 Se faltarem acima, o XLSX continua válido.
 
 STATUS: {dados.status}

@@ -43,10 +43,10 @@ def test_fmt_pct_bacen_pequena():
     assert _fmt_pct(0.0647) == "6,47%"
 
 
-def _dados_log_marli() -> DadosLog:
+def _dados_log_pessoa_teste_c() -> DadosLog:
     contrato = DadosContrato(
         numero_cedula="4095068",
-        nome_emitente="Marli Sueli Berger Dambrosio",
+        nome_emitente="Pessoa Teste C",
         data_emissao=date(2025, 12, 29),
         primeiro_vencimento=date(2026, 2, 2),
         ultimo_vencimento=date(2027, 7, 2),
@@ -68,15 +68,15 @@ def _dados_log_marli() -> DadosLog:
     )
     return DadosLog(
         dados_planilha=pl,
-        usuario_email="bruna@roseportaladvocacia.com.br",
-        pasta_drive_path="EMPRESTIMO DE ENERGIA/10. RIO GRANDE DO SUL/MARLI...",
-        contrato_arquivo="09 Contrato Crefaz.pdf",
+        usuario_email="pessoa@example.invalid",
+        pasta_drive_path="EMPRESTIMO DE ENERGIA/10. RIO GRANDE DO SUL/PESSOA TESTE C...",
+        contrato_arquivo="09 Contrato Revisao.pdf",
         bacen_origem="pasta_cliente",
         bacen_mes=2,
         bacen_ano=2026,
         aba_template="CÁLCULO",
         arquivos_gerados=[
-            ArquivoGerado("10 Cálculo MARLI SUELI BERGER DAMBROSIO.xlsx", "novo"),
+            ArquivoGerado("10 Cálculo PESSOA TESTE C.xlsx", "novo"),
             ArquivoGerado("11 Series Temporais.pdf", "mantido"),
             ArquivoGerado("12 Log.txt", "append"),
         ],
@@ -86,12 +86,12 @@ def _dados_log_marli() -> DadosLog:
     )
 
 
-def test_log_marli_contem_campos_chave():
-    txt = gerar_log(_dados_log_marli())
+def test_log_pessoa_teste_c_contem_campos_chave():
+    txt = gerar_log(_dados_log_pessoa_teste_c())
     assert f"v{__version__}" in txt  # versão corrente, não hardcoded
     assert "2026-04-28 14:32:11 BRT" in txt
-    assert "bruna@roseportaladvocacia.com.br" in txt
-    assert "Marli Sueli Berger Dambrosio" in txt
+    assert "pessoa@example.invalid" in txt
+    assert "Pessoa Teste C" in txt
     assert "Número da cédula: 4095068" in txt
     assert "Prazo: 18 parcelas" in txt
     assert "29/12/2025" in txt
@@ -108,19 +108,19 @@ def test_log_marli_contem_campos_chave():
     assert "Série mensal: 29977" in txt
     assert "STATUS: SUCESSO" in txt
     # Lista de arquivos gerados
-    assert "10 Cálculo MARLI SUELI BERGER DAMBROSIO.xlsx (novo)" in txt
+    assert "10 Cálculo PESSOA TESTE C.xlsx (novo)" in txt
     assert "11 Series Temporais.pdf (mantido)" in txt
     assert "12 Log.txt (append)" in txt
 
 
 def test_log_excesso_calculado_corretamente():
-    txt = gerar_log(_dados_log_marli())
+    txt = gerar_log(_dados_log_pessoa_teste_c())
     # Excesso: 14,49 / 6,47 - 1 = 1.2395 → +124%
     assert "+124%" in txt
 
 
 def test_log_origem_serie_do_bacen():
-    log = _dados_log_marli()
+    log = _dados_log_pessoa_teste_c()
     log.bacen_origem = "serie_do_bacen"
     txt = gerar_log(log)
     assert "serie_do_bacen" in txt
@@ -128,7 +128,7 @@ def test_log_origem_serie_do_bacen():
 
 
 def test_log_status_customizado():
-    log = _dados_log_marli()
+    log = _dados_log_pessoa_teste_c()
     log.status = "BLOQUEIO_DEDUP"
     txt = gerar_log(log)
     assert "STATUS: BLOQUEIO_DEDUP" in txt

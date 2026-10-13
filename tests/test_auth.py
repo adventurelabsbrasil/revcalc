@@ -19,8 +19,8 @@ from calculadora_crefaz.auth import (
 from calculadora_crefaz.exceptions import AuthError
 
 
-def test_validar_dominio_rose():
-    _validar_dominio("bruna@roseportaladvocacia.com.br")  # não levanta
+def test_validar_dominio_OPERAÇÃO():
+    _validar_dominio("pessoa@example.invalid")  # não levanta
 
 
 def test_validar_dominio_adventure():
@@ -34,14 +34,14 @@ def test_validar_dominio_estranho_bloqueia():
 
 
 def test_validar_dominio_case_insensitive():
-    _validar_dominio("BRUNA@RosePortalAdvocacia.com.br")  # não levanta
+    _validar_dominio("PESSOA@example.invalid")  # não levanta
 
 
 def test_username_para_email_estavel():
-    u = _username_para_email("bruna@roseportaladvocacia.com.br")
-    assert u == "oauth-tokens-bruna@roseportaladvocacia.com.br"
+    u = _username_para_email("pessoa@example.invalid")
+    assert u == "oauth-tokens-pessoa@example.invalid"
     # idempotente
-    assert u == _username_para_email("bruna@roseportaladvocacia.com.br")
+    assert u == _username_para_email("pessoa@example.invalid")
 
 
 def test_carregar_client_id_de_env(monkeypatch):

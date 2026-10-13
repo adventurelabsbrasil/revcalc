@@ -13,10 +13,10 @@ from calculadora_crefaz.parser_contrato import DadosContrato
 from calculadora_crefaz.planilha import DadosPlanilha, gerar_xlsx
 
 
-def _contrato_marli() -> DadosContrato:
+def _contrato_pessoa_teste_c() -> DadosContrato:
     return DadosContrato(
         numero_cedula="4095068",
-        nome_emitente="Marli Sueli Berger Dambrosio",
+        nome_emitente="Pessoa Teste C",
         data_emissao=date(2025, 12, 29),
         primeiro_vencimento=date(2026, 2, 2),
         ultimo_vencimento=date(2027, 7, 2),
@@ -32,10 +32,10 @@ def _contrato_marli() -> DadosContrato:
     )
 
 
-def _contrato_adriano() -> DadosContrato:
+def _contrato_pessoa_teste_b() -> DadosContrato:
     return DadosContrato(
         numero_cedula="3867296",
-        nome_emitente="Adriano Luis Calistro Lourenco",
+        nome_emitente="Pessoa Teste B",
         data_emissao=date(2025, 9, 22),
         primeiro_vencimento=date(2025, 10, 27),
         ultimo_vencimento=date(2026, 9, 27),
@@ -57,11 +57,11 @@ def _carrega_xlsx(blob: bytes):
 
 class TestGerarXlsx:
     # v0.6.0: o template Calculo.xlsx tem aba DADOS (valores) + aba CÁLCULO única
-    # (fórmulas =DADOS!...). Os inputs vão na DADOS; a CÁLCULO referencia. Crefaz só
+    # (fórmulas =DADOS!...). Os inputs vão na DADOS; a CÁLCULO referencia. Revisao só
     # opera até 24 parcelas → abas multi-prazo (PRICE 36x/48x/60x) foram removidas.
-    def test_marli_18_parcelas_dados_e_calculo(self):
+    def test_pessoa_teste_c_18_parcelas_dados_e_calculo(self):
         dados = DadosPlanilha(
-            contrato=_contrato_marli(),
+            contrato=_contrato_pessoa_teste_c(),
             taxa_bacen=0.0647,
             parcelas_pagas=3,
             data_calculo=date(2026, 4, 28),
@@ -75,7 +75,7 @@ class TestGerarXlsx:
         dd = wb["DADOS"]
         assert dd["B2"].value == (
             "CÁLCULOS DA OPERAÇÃO Nº 4095068 - "
-            "CLIENTE: MARLI SUELI BERGER DAMBROSIO x BANCO CREFAZ"
+            "CLIENTE: PESSOA TESTE C x INSTITUIÇÃO FINANCEIRA"
         )
         assert dd["B3"].value.date() == date(2025, 12, 29)  # data_emissao
         assert dd["B4"].value.date() == date(2026, 2, 2)    # 1º vencimento
@@ -98,9 +98,9 @@ class TestGerarXlsx:
         assert cc.page_setup.orientation == "landscape"
         assert cc.page_setup.fitToWidth in (1, True)
 
-    def test_adriano_12_parcelas_dados(self):
+    def test_pessoa_teste_b_12_parcelas_dados(self):
         dados = DadosPlanilha(
-            contrato=_contrato_adriano(),
+            contrato=_contrato_pessoa_teste_b(),
             taxa_bacen=0.0573,
             parcelas_pagas=6,
             data_calculo=date(2026, 4, 28),
@@ -111,7 +111,7 @@ class TestGerarXlsx:
         dd = wb["DADOS"]
         assert dd["B2"].value == (
             "CÁLCULOS DA OPERAÇÃO Nº 3867296 - "
-            "CLIENTE: ADRIANO LUIS CALISTRO LOURENCO x BANCO CREFAZ"
+            "CLIENTE: PESSOA TESTE B x INSTITUIÇÃO FINANCEIRA"
         )
         assert dd["B4"].value.date() == date(2025, 10, 27)
         assert dd["B4"].number_format == "dd/mm/yyyy"
@@ -123,8 +123,8 @@ class TestGerarXlsx:
         assert dd["B13"].value == 6
 
     def test_prazo_acima_de_24_lanca(self):
-        # Crefaz não opera > 24 parcelas; gerar_xlsx propaga PrazoForaDoTemplate.
-        contrato = _contrato_marli()
+        # Revisao não opera > 24 parcelas; gerar_xlsx propaga PrazoForaDoTemplate.
+        contrato = _contrato_pessoa_teste_c()
         contrato.prazo = 30
         dados = DadosPlanilha(
             contrato=contrato,
@@ -138,7 +138,7 @@ class TestGerarXlsx:
     def test_formulas_preservadas(self):
         """Garante que fórmulas críticas do template (aba CÁLCULO) não são sobrescritas."""
         dados = DadosPlanilha(
-            contrato=_contrato_marli(),
+            contrato=_contrato_pessoa_teste_c(),
             taxa_bacen=0.0647,
             parcelas_pagas=3,
             data_calculo=date(2026, 4, 28),
@@ -161,7 +161,7 @@ class TestGerarXlsxQuitado:
     def test_24x_inputs_e_aba_unica(self):
         """Quitado prazo ≤24 → aba PRICE 24X, preenchimento legacy direto nas células I."""
         dados = DadosPlanilha(
-            contrato=_contrato_marli(),  # prazo 18
+            contrato=_contrato_pessoa_teste_c(),  # prazo 18
             taxa_bacen=0.0647,
             parcelas_pagas=18,  # todas pagas
             data_calculo=date(2026, 4, 28),
@@ -198,7 +198,7 @@ class TestGerarXlsxQuitado:
 
     def test_36x_offset_de_celulas(self):
         """Quitado prazo 25–36 → aba PRICE 36x com offset de linha (+1)."""
-        contrato = _contrato_marli()
+        contrato = _contrato_pessoa_teste_c()
         contrato.prazo = 30
         dados = DadosPlanilha(
             contrato=contrato,
@@ -222,7 +222,7 @@ class TestGerarXlsxQuitado:
         assert ws.row_dimensions[168].hidden is True
 
     def test_prazo_acima_de_60_lanca(self):
-        contrato = _contrato_marli()
+        contrato = _contrato_pessoa_teste_c()
         contrato.prazo = 61
         dados = DadosPlanilha(
             contrato=contrato,

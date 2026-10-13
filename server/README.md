@@ -1,4 +1,4 @@
-# Backend web — Calculadora Crefaz (FastAPI)
+# Backend web — Calculadora Revisao (FastAPI)
 
 Embrulha o engine desktop (`calculadora_crefaz`) num serviço HTTP: OAuth web
 server-side, execução do pipeline em thread e progresso ao vivo via SSE. Roda
@@ -9,7 +9,7 @@ Arquitetura: **front Next.js na Vercel** → **este backend num container no xeo
 
 ## Pré-requisito: OAuth no Google Cloud (Fase 0)
 
-1. No projeto Google Cloud **do Workspace da Rose** (`roseportaladvocacia.com.br`):
+1. No projeto Google Cloud **do Workspace da OPERAÇÃO** (`example.invalid`):
 2. **OAuth consent screen** → tipo **Internal**. Isso dispensa verificação/CASA
    do Google para o escopo restrito `.../auth/drive` (vale só p/ usuários do
    Workspace; usuário Adventure pode precisar entrar como membro/convidado).
@@ -36,7 +36,7 @@ Veja `.env.example` na raiz. Mínimo:
 | `COOKIE_SAMESITE` | `lax` | `lax` se front+api no mesmo domínio; `none` se cross-site |
 | `COOKIE_SECURE` | `true` | `false` só em dev http |
 | `TOKEN_ENC_KEY` | (Fernet key) | opcional; se ausente, derivada do `SESSION_SECRET` |
-| `REVCALC_PASTA_MAE_ID` / `REVCALC_PASTA_BACEN_ID` | (Drive IDs) | opcional; fallback = prod Rose |
+| `REVCALC_PASTA_MAE_ID` / `REVCALC_PASTA_BACEN_ID` | (Drive IDs) | opcional; fallback = prod OPERAÇÃO |
 
 > **Cookies first-party:** sirva o front num subdomínio do mesmo domínio da API
 > (ex.: `revcalc.adventurelabs.com.br` via domínio custom na Vercel +

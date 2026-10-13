@@ -2,7 +2,7 @@
   "name": "revcalc-web",
   "private": true,
   "version": "0.8.0",
-  "description": "Front da Calculadora Crefaz — Rose Portal Advocacia (Vercel)",
+  "description": "Front do RevCalc — Calculadora de Revisão de Contratos (Vercel)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

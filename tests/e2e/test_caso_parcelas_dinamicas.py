@@ -3,7 +3,7 @@
 Valida a aba CÁLCULO única (modelo DADOS + visual), o wiring por fórmula p/ a
 aba DADOS, e as fórmulas dinâmicas da tabela de parcelas (AD/BE/BF) que o engine
 injeta em `_corrigir_tabelas_parcelas_e_colunas`. v0.6.0 aposentou as abas
-multi-prazo (PRICE 36x/48x/60x) — Crefaz só opera até 24 parcelas.
+multi-prazo (PRICE 36x/48x/60x) — Revisao só opera até 24 parcelas.
 """
 
 from __future__ import annotations

@@ -4,7 +4,7 @@
 Build no Windows:
     pyinstaller pyinstaller.spec
 
-Output: dist/CalculadoraCrefaz.exe
+Output: dist/RevCalc.exe
 """
 
 import os
@@ -59,7 +59,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name="CalculadoraCrefaz",
+    name="RevCalc",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

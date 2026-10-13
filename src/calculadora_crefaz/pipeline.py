@@ -177,7 +177,7 @@ def executar(
     """Orquestra o run: processa a pasta RAIZ + cada SUBPASTA DIRETA com contrato.
 
     v0.9.4: alguns clientes têm o contrato ativo na raiz e contratos quitados em
-    subpastas (ex.: VLADIMIR). Processa cada pasta com contrato Crefaz, gravando a
+    subpastas (ex.: VLADIMIR). Processa cada pasta com contrato Revisao, gravando a
     saída na respectiva pasta; pastas sem contrato são puladas silenciosamente.
 
     v0.9.8: contrato que já tem cálculo na pasta é PULADO (não refeito) — a cliente
@@ -194,7 +194,7 @@ def executar(
     emit("=== Planned steps ===")
     for step in (
         "Locate client folder on Drive (+ direct subfolders)",
-        "For each folder with a Crefaz contract (skip if already calculated): parse, BACEN, XLSX, captures, run log",
+        "For each folder with a Revisao contract (skip if already calculated): parse, BACEN, XLSX, captures, run log",
     ):
         emit(f"  • {step}")
     emit("")
@@ -207,7 +207,7 @@ def executar(
     subpastas = drive.listar_subpastas(service, pasta_raiz)
     pastas = [pasta_raiz, *subpastas]
     if subpastas:
-        emit(f"Direct subfolders: {len(subpastas)} — each with a Crefaz contract will be processed too.")
+        emit(f"Direct subfolders: {len(subpastas)} — each with a Revisao contract will be processed too.")
 
     resultados: list[ResultadoPipeline] = []
     pulados: list[dict] = []
@@ -230,7 +230,7 @@ def executar(
                 )
             )
         except ContratoNaoEncontrado:
-            emit(f"[skipped] {pasta.nome_real} — no Crefaz contract in this folder.")
+            emit(f"[skipped] {pasta.nome_real} — no Revisao contract in this folder.")
         except CalculoJaExiste as e:
             pulados.append({"pasta": e.pasta, "arquivo": e.arquivo})
 
@@ -240,7 +240,7 @@ def executar(
             emit(f"Nothing new — {len(pulados)} contract(s) already calculated (skipped).")
             return _resultado_vazio_pulados(pasta_raiz, pulados)
         raise ContratoNaoEncontrado(
-            "Nenhum contrato Crefaz encontrado na pasta da cliente nem nas subpastas diretas."
+            "Nenhum contrato Revisao encontrado na pasta da cliente nem nas subpastas diretas."
         )
 
     emit("")
@@ -325,7 +325,7 @@ def _processar_pasta(
     hoje: date,
 ) -> ResultadoPipeline:
     """Processa UMA pasta (raiz ou subpasta). Lança ContratoNaoEncontrado se não
-    houver contrato Crefaz (o orquestrador pula a pasta). Lança CalculoJaExiste se
+    houver contrato Revisao (o orquestrador pula a pasta). Lança CalculoJaExiste se
     a pasta já tem cálculo — o orquestrador registra como pulado (não refaz)."""
     t0 = time.perf_counter()
     files_before = drive.contar_arquivos_na_pasta(service, pasta.id)
@@ -339,7 +339,7 @@ def _processar_pasta(
         )
         raise CalculoJaExiste(pasta.nome_real, calculo_existente.name)
 
-    emit("Locating Crefaz contract PDF...")
+    emit("Locating Revisao contract PDF...")
     contrato_arquivo = drive.localizar_contrato(
         service, pasta.id, forcar_nome=forcar_contrato_nome
     )
@@ -487,7 +487,7 @@ def _processar_pasta(
         )
         emit("Spreadsheet PDF ready.")
 
-        # imag.01.png — recorte do Item II do contrato Crefaz.
+        # imag.01.png — recorte do Item II do contrato Revisao.
         # img02 (recorte da região PMT na planilha) foi removido em v0.6.9.
         conf_c = CAPTURA_IMG01_CONTRATO
         try:

@@ -2,7 +2,7 @@
 set -e
 
 echo "================================================"
-echo " Calculadora Crefaz - Instalacao e Teste (Mac) "
+echo " Calculadora Revisao - Instalacao e Teste (Mac) "
 echo "================================================"
 echo
 
@@ -16,8 +16,8 @@ echo "[1/3] Instalando LibreOffice..."
 brew install --cask libreoffice || true
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_PATH_1="$SCRIPT_DIR/../CalculadoraCrefaz.app"
-APP_PATH_2="$SCRIPT_DIR/CalculadoraCrefaz.app"
+APP_PATH_1="$SCRIPT_DIR/../RevCalc.app"
+APP_PATH_2="$SCRIPT_DIR/RevCalc.app"
 
 echo
 echo "[2/3] Verificando app..."
@@ -26,7 +26,7 @@ if [ -d "$APP_PATH_1" ]; then
 elif [ -d "$APP_PATH_2" ]; then
   APP_PATH="$APP_PATH_2"
 else
-  echo "[ERRO] CalculadoraCrefaz.app nao encontrado na pasta esperada."
+  echo "[ERRO] RevCalc.app nao encontrado na pasta esperada."
   echo "Coloque o .app junto com este kit e rode novamente."
   exit 1
 fi

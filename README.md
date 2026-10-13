@@ -1,8 +1,8 @@
-# Calculadora de Ação Crefaz
+# RevCalc — Calculadora de Revisão de Contratos
 
-**Versão atual:** `v0.9.14` · **Cliente:** Rose Portal Advocacia
+**Versão atual:** `v0.9.14`
 
-Automatiza o cálculo de revisão de contratos **Crefaz**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica. Aceita **vários clientes em lote** e **pula automaticamente** contratos que já têm cálculo.
+Automatiza o cálculo de revisão de contratos **Revisao**: você informa o **nome da pasta da cliente no Google Drive**; o app localiza a pasta, lê o **contrato em PDF**, obtém a **taxa BACEN** do período correto, preenche a **planilha de cálculo** e gera os **prints (PDF + PNG)** na própria pasta — prontos para conferência jurídica. Aceita **vários clientes em lote** e **pula automaticamente** contratos que já têm cálculo.
 
 ## ⚡ Versão Web (produção)
 
@@ -12,7 +12,7 @@ Desde 06/2026 roda **como web app** (a versão desktop `.exe` foi bloqueada pelo
 |---|---|---|
 | **Front** | https://revcalc.adventurelabs.com.br | Next.js na **Vercel** (root `web/`) |
 | **Backend** | https://revcalc-api.adventurelabs.com.br | **FastAPI** em container **ativo/ativo** no **xeon** (primário) **+ beelink** (standby 24/7), cada host com uma **réplica do mesmo Cloudflare Tunnel** — a borda da CF balanceia e faz **failover automático** se um host cai (ambos NAT, sem inbound) |
-| **OAuth** | Google client **Web** (Workspace Rose, consent Internal) | secrets em Infisical `/clientes/03_ROSE` |
+| **OAuth** | Google client **Web** (Workspace OPERAÇÃO, consent Internal) | secrets em Infisical `/clientes/03_OPERAÇÃO` |
 
 O **engine de cálculo** (`src/calculadora_crefaz/`) é o mesmo do desktop, rodando inalterado dentro do container — `server/` só embrulha em HTTP (OAuth server-side + SSE de progresso). O `templates/Calculo.xlsx` é o **entregável jurídico CONGELADO**; o Python só preenche inputs, o Excel calcula.
 
@@ -20,7 +20,7 @@ O **engine de cálculo** (`src/calculadora_crefaz/`) é o mesmo do desktop, roda
 
 **Saída na pasta da cliente**: `Calculo.xlsx` · `NN Calculo.pdf` · `NN Series Temporais.pdf` (BACEN) · `imag.01.png` (Item II do contrato, recorte só da seção) · `imag.02.png` (bloco "Parcela com Taxa Média e Expurgo"). No fluxo **quitado** o cálculo vira `Calculo quitado.xlsx` · `NN Calculo quitado.pdf`.
 
-**Numeração sequencial (v0.9.9):** o prefixo `NN` das saídas é **derivado do contrato**, consecutivo — Séries Temporais = contrato **+1**, Cálculo (PDF) = contrato **+2**. Ex.: `09 Contrato Crefaz FULANO.pdf` → `10 Series Temporais.pdf` + `11 Calculo.pdf`; `10 Contrato…` → `11 Series Temporais.pdf` + `12 Calculo.pdf`. A planilha-fonte `Calculo.xlsx` permanece **sem número** (é a chave de dedup). Contrato sem prefixo numérico → fallback legado (`11 Series Temporais.pdf` / `Calculo.pdf` sem número).
+**Numeração sequencial (v0.9.9):** o prefixo `NN` das saídas é **derivado do contrato**, consecutivo — Séries Temporais = contrato **+1**, Cálculo (PDF) = contrato **+2**. Ex.: `09 Contrato Revisao FULANO.pdf` → `10 Series Temporais.pdf` + `11 Calculo.pdf`; `10 Contrato…` → `11 Series Temporais.pdf` + `12 Calculo.pdf`. A planilha-fonte `Calculo.xlsx` permanece **sem número** (é a chave de dedup). Contrato sem prefixo numérico → fallback legado (`11 Series Temporais.pdf` / `Calculo.pdf` sem número).
 
 ### 🆕 Contratos quitados vs ativos (v0.9.0)
 
@@ -32,15 +32,15 @@ O app **detecta automaticamente** se o contrato é **quitado** (pago integralmen
 | Prazo suportado | 1–24 | 1–60 (cálculo retrospectivo: saldo zerado + montante cobrado a mais) |
 | Saída | `Calculo.xlsx` / `Calculo.pdf` | `Calculo quitado.xlsx` / `Calculo quitado.pdf` |
 
-O template quitado é **input-driven** (gerado de uma planilha hand-filled da Rose via [`scripts/limpa_template_quitado.py`](scripts/limpa_template_quitado.py), espelhando o padrão guardado da aba ativa): a lista de parcelas usa fórmulas `IF(idx>$I$qtd,"",…)` + datas `EDATE($D$1ºvenc, k)` até a capacidade de cada aba; a **matemática de recálculo** (bloco PMT, colunas AP/BL) é preservada intacta. **TAC** entra só em *DADOS DO CONTRATO*, não em *VALORES RECALCULADOS* (o recálculo já expurga a TAC do valor financiado).
+O template quitado é **input-driven** (gerado de uma planilha hand-filled da OPERAÇÃO via [`scripts/limpa_template_quitado.py`](scripts/limpa_template_quitado.py), espelhando o padrão guardado da aba ativa): a lista de parcelas usa fórmulas `IF(idx>$I$qtd,"",…)` + datas `EDATE($D$1ºvenc, k)` até a capacidade de cada aba; a **matemática de recálculo** (bloco PMT, colunas AP/BL) é preservada intacta. **TAC** entra só em *DADOS DO CONTRATO*, não em *VALORES RECALCULADOS* (o recálculo já expurga a TAC do valor financiado).
 
 ### 🗂️ Subpastas (v0.9.4)
 
-Quando a cliente tem o contrato ativo na **pasta raiz** e contratos quitados em **subpastas** (1 nível), o app processa **todas** numa só execução: a raiz + cada subpasta direta que contenha um contrato Crefaz, gravando a saída (`Calculo[.quitado].xlsx`/`.pdf` + imagens) na respectiva pasta. Subpastas sem contrato são **puladas silenciosamente**. O status mostra cada pasta processada; o resultado lista os arquivos com prefixo `«subpasta/»`.
+Quando a cliente tem o contrato ativo na **pasta raiz** e contratos quitados em **subpastas** (1 nível), o app processa **todas** numa só execução: a raiz + cada subpasta direta que contenha um contrato Revisao, gravando a saída (`Calculo[.quitado].xlsx`/`.pdf` + imagens) na respectiva pasta. Subpastas sem contrato são **puladas silenciosamente**. O status mostra cada pasta processada; o resultado lista os arquivos com prefixo `«subpasta/»`.
 
 ### 🔢 Linhas das tabelas = nº de parcelas (v0.9.7)
 
-As três tabelas de parcelas (**PARCELAS CONFORME O CONTRATO** / **PARCELAS RECALCULADAS** / **VALORES PAGOS PELO CLIENTE**) agora mostram **exatamente o número de parcelas do contrato** — 12 parcelas → 12 linhas, 22 → 22. As tabelas dividem um range físico fixo (linhas 132–155) e as fórmulas já esvaziavam o excedente, mas as linhas em branco continuavam visíveis com bordas; o engine agora **oculta as linhas além do prazo** (parcela N ocupa a linha 131+N), fechando a tabela no tamanho certo na tela, no Sheets e na impressão. Vale para **os dois fluxos** — **ativo** (`CÁLCULO`, 1–24) e **quitado** (`PRICE 24X/36x/48x/60x`, 1–60). Feedback da Rose/Bruna.
+As três tabelas de parcelas (**PARCELAS CONFORME O CONTRATO** / **PARCELAS RECALCULADAS** / **VALORES PAGOS PELO CLIENTE**) agora mostram **exatamente o número de parcelas do contrato** — 12 parcelas → 12 linhas, 22 → 22. As tabelas dividem um range físico fixo (linhas 132–155) e as fórmulas já esvaziavam o excedente, mas as linhas em branco continuavam visíveis com bordas; o engine agora **oculta as linhas além do prazo** (parcela N ocupa a linha 131+N), fechando a tabela no tamanho certo na tela, no Sheets e na impressão. Vale para **os dois fluxos** — **ativo** (`CÁLCULO`, 1–24) e **quitado** (`PRICE 24X/36x/48x/60x`, 1–60). Feedback da OPERAÇÃO/Pessoa usuária.
 
 ### 🖼️ imag.01 robusta a layout ativo×quitado (v0.9.6)
 
@@ -48,7 +48,7 @@ O recorte da **imag.01** (bloco "EMPRÉSTIMO CONCEDIDO" do contrato) agora ancor
 
 ### ⏭️ Não refaz cálculo já feito + 🗂️ lote de clientes (v0.9.8)
 
-**Regra de pular (pedido da cliente).** Ao rodar, cada pasta com contrato Crefaz que **já tem um cálculo** (`Calculo.xlsx` / `Calculo quitado.xlsx` / legado `10 Cálculo*.xlsx`) é **pulada automaticamente** — a calculadora processa **só os contratos que faltam**. Nada é sobrescrito e o run **não trava** quando encontra um cálculo prévio (antes, o app parava e pedia "Sobrescrever todos?", refazendo tudo ou nada). Para **refazer** um cálculo, apague o `Calculo.xlsx` (ou `Calculo quitado.xlsx`) da pasta dele no Drive e rode de novo — a UI traz essa instrução. Se **todos** os contratos da cliente já têm cálculo, o resultado diz "nada novo" (sem erro).
+**Regra de pular (pedido da cliente).** Ao rodar, cada pasta com contrato Revisao que **já tem um cálculo** (`Calculo.xlsx` / `Calculo quitado.xlsx` / legado `10 Cálculo*.xlsx`) é **pulada automaticamente** — a calculadora processa **só os contratos que faltam**. Nada é sobrescrito e o run **não trava** quando encontra um cálculo prévio (antes, o app parava e pedia "Sobrescrever todos?", refazendo tudo ou nada). Para **refazer** um cálculo, apague o `Calculo.xlsx` (ou `Calculo quitado.xlsx`) da pasta dele no Drive e rode de novo — a UI traz essa instrução. Se **todos** os contratos da cliente já têm cálculo, o resultado diz "nada novo" (sem erro).
 
 **Lote de clientes.** A tela aceita **vários nomes** (adicione um a um → fila de chips). O run processa cada cliente em sequência, aplicando a regra de pular; nome **não encontrado / ambíguo não interrompe** a tanda — vira status no **relatório por-cliente** ao final (✅ calculado · ⏭️ já feito · 🔎 não encontrado · ⚠️ erro), com resumo no topo. Um único nome continua funcionando (fila de 1).
 
@@ -62,7 +62,7 @@ num dropdown — **Melhoria** (`feat`) · **Falha** (`bug`) · **Log de erro** (
 erro** durante o cálculo (SSE cai, run falha), aparece um botão **"📨 Reportar este erro pra
 equipe"** que envia em um clique (`origem=auto`, anexando as linhas de log da run).
 
-**Destino:** Supabase `public.revcalc_feedback` (projeto `ftctmseyrqhckutpfdeq`), **não** GitHub.
+**Destino:** Supabase `public.revcalc_feedback` (projeto `SUPABASE_PROJECT_ID`), **não** GitHub.
 Decisão: contém PII (advogados → dado financeiro de clientes), evita spam de issues nos
 auto-reportes e mantém a triagem do nosso lado (promoção curada a issue do GitHub é manual).
 
@@ -82,7 +82,7 @@ Endpoints: `GET /api/feedback/config` (`{enabled}`) · `POST /api/feedback` (ses
 **Docs adicionais (detalhes e edge cases):**
 
 - Técnico / PyInstaller / estrutura do repo → [`README_DEV.md`](README_DEV.md)
-- Fluxo pensado para quem só instala binário + kit Rose → [`cliente-kit/README_USUARIO_FINAL.md`](cliente-kit/README_USUARIO_FINAL.md)
+- Fluxo pensado para quem só instala binário + kit OPERAÇÃO → [`cliente-kit/README_USUARIO_FINAL.md`](cliente-kit/README_USUARIO_FINAL.md)
 
 [![tests](https://github.com/adventurelabsbrasil/revcalc/actions/workflows/tests.yml/badge.svg)](https://github.com/adventurelabsbrasil/revcalc/actions/workflows/tests.yml)
 [![Releases](https://img.shields.io/github/v/release/adventurelabsbrasil/revcalc?display_name=release)](https://github.com/adventurelabsbrasil/revcalc/releases)
@@ -94,8 +94,8 @@ Endpoints: `GET /api/feedback/config` (`{enabled}`) · `POST /api/feedback` (ses
 
 1. Login **Google OAuth** (contas autorizadas na configuração do app).
 2. Busca da pasta da cliente em `EMPRESTIMO DE ENERGIA/<UF>/<NOME>/` no Drive.
-3. Leitura do **`NN Contrato Crefaz FULANO.pdf`**, parsing do Item II e dos dados financeiros. O número `NN` do contrato define a sequência das saídas (Séries = `NN+1`, Cálculo = `NN+2`).
-4. Uso da taxa **BACEN** (PDF **`{NN+1} Series Temporais.pdf`** na pasta ou cópia do repositório central da Rose quando faltar). A referência é o mês/ano do **1º vencimento**. O parser valida a troca de séries do SGS: até `10/2025`, anual `20742` + mensal `25464`; desde `11/2025`, anual `29974` + mensal `29977`.
+3. Leitura do **`NN Contrato Revisao FULANO.pdf`**, parsing do Item II e dos dados financeiros. O número `NN` do contrato define a sequência das saídas (Séries = `NN+1`, Cálculo = `NN+2`).
+4. Uso da taxa **BACEN** (PDF **`{NN+1} Series Temporais.pdf`** na pasta ou cópia do repositório central da OPERAÇÃO quando faltar). A referência é o mês/ano do **1º vencimento**. O parser valida a troca de séries do SGS: até `10/2025`, anual `20742` + mensal `25464`; desde `11/2025`, anual `29974` + mensal `29977`.
 5. Geração do **`10 Cálculo …xlsx`**, **`12 Log.txt`** (append) e arquivos **`13 Print …`** (planilha + blocos regionais + trechos dos PDFs).
 
 **Tempo médio:** cerca de 30–60 segundos por execução (rede + tamanho do PDF).
@@ -199,7 +199,7 @@ pip install pyinstaller
 pyinstaller pyinstaller.spec
 ```
 
-O binário sai em **`dist\CalculadoraCrefaz.exe`**. Mais detalhes em [`README_DEV.md`](README_DEV.md).
+O binário sai em **`dist\RevCalc.exe`**. Mais detalhes em [`README_DEV.md`](README_DEV.md).
 
 ---
 
@@ -240,7 +240,9 @@ python -m calculadora_crefaz
 
 A página [**Releases**](https://github.com/adventurelabsbrasil/revcalc/releases) pode trazer instaladores quando publicados. **Binário Windows pode não estar anexado** em toda versão — o caminho garantido até automatizarmos CI é **clone + venv acima**.
 
-Alternativa já documentada para equipe Rose (script `instalar-e-testar`) está em **`cliente-kit/`** — ver [**`cliente-kit/README_USUARIO_FINAL.md`**](cliente-kit/README_USUARIO_FINAL.md).
+Alternativa já documentada para equipe OPERAÇÃO (script `instalar-e-testar`) está em **`cliente-kit/`** — ver [**`cliente-kit/README_USUARIO_FINAL.md`**](cliente-kit/README_USUARIO_FINAL.md).
+
+Para executar o engine localmente no Windows, use o [kit de instalação local](cliente-kit/README_WINDOWS_LOCAL.md). O instalador baixa a tag v0.9.14, cria o ambiente Python local e instala um launcher PowerShell. O atualizador consulta tags futuras, preserva o `.env` e atualiza o código sem depender do Xeon.
 
 ---
 
@@ -255,7 +257,7 @@ Alternativa já documentada para equipe Rose (script `instalar-e-testar`) está 
 Estrutura típica de saída na pasta da cliente (`EMPRESTIMO DE ENERGIA/.../Nome/`):
 
 ```
-├── 09 Contrato Crefaz FULANO DE TAL.pdf   (entrada — define a sequência NN)
+├── 09 Contrato Revisao FULANO DE TAL.pdf   (entrada — define a sequência NN)
 ├── 10 Series Temporais.pdf                (NN+1; existente ou copiado pelo app)
 ├── 11 Calculo.pdf                         (NN+2; PDF do cálculo)
 ├── Calculo.xlsx                           (planilha-fonte, sem número — chave de dedup)
@@ -277,9 +279,9 @@ Estrutura típica de saída na pasta da cliente (`EMPRESTIMO DE ENERGIA/.../Nome
 | Sintoma rápido | O que conferir |
 |----------------|----------------|
 | Pasta não encontrada | Nome igual ao da pasta no Drive |
-| Contrato não encontrado | Renomear para padrão com “Contrato Crefaz” no nome |
+| Contrato não encontrado | Renomear para padrão com “Contrato Revisao” no nome |
 | BACEN não encontrado | Existência do PDF correspondente ao mês/ano esperado pela regra do app |
-| Prazo não suportado | Template atual cobre até **24 parcelas** (Crefaz) |
+| Prazo não suportado | Template atual cobre até **24 parcelas** (Revisao) |
 
 Logout: botão **Sair** (limpa sessão local nesta máquina).
 
@@ -295,11 +297,11 @@ Envie nome da cliente, captura da janela com o log completo e data/hora. Evite e
 
 - **v0.7** — automatizar distribuição / build `.exe` em Releases (GitHub Actions)
 - **v0.8** — pacote `.app` Mac mais polido
-- **v0.9** — notificação pós-cálculo (ex.: Telegram), se política Rose permitir
+- **v0.9** — notificação pós-cálculo (ex.: Telegram), se política OPERAÇÃO permitir
 
 ---
 
-© **2026** · **Adventure Labs** — Calculadora de Ação Crefaz · **v0.6.2**
+© **2026** · **Adventure Labs** — Calculadora de Ação Revisao · **v0.6.2**
 
 ---
 

@@ -1,7 +1,7 @@
 """OAuth desktop flow + token persistido em keyring.
 
 Não usa client_secret — apenas client_id + PKCE + loopback redirect.
-Restringe login aos domínios autorizados (Rose + Adventure).
+Restringe login aos domínios autorizados (OPERAÇÃO + Adventure).
 """
 
 from __future__ import annotations

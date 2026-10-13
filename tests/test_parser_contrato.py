@@ -1,4 +1,4 @@
-"""Testes do parser de contrato Crefaz.
+"""Testes do parser de contrato Revisao.
 
 Os testes sintéticos validam regex sem depender de PDFs reais.
 Testes E2E com PDFs reais ficam em fixtures/ (gitignored) e são opcionais.
@@ -80,11 +80,11 @@ class TestExtrairItemII:
 # ─── Parser completo com texto sintético ────────────────────────────────────
 
 
-CONTRATO_SINTETICO_MARLI = """\
+CONTRATO_SINTETICO_C = """\
 CÉDULA DE CRÉDITO BANCÁRIO N.º 4095068
 
 I.EMITENTE
-Nome: Marli Sueli Berger Dambrosio CPF/MF: 123.456.789-00
+Nome: Pessoa Teste C CPF/MF: CPF_TESTE_001
 
 II.EMPRÉSTIMO CONCEDIDO:
 Data de Emissão: 29/12/2025
@@ -104,11 +104,11 @@ III.CUSTO EFETIVO TOTAL
 """
 
 
-CONTRATO_SINTETICO_ADRIANO = """\
+CONTRATO_SINTETICO_B = """\
 CÉDULA DE CRÉDITO BANCÁRIO N.º 3867296
 
 I.EMITENTE
-Nome: Adriano Luis Calistro Lourenco CPF/MF: 987.654.321-00
+Nome: Pessoa Teste B CPF/MF: CPF_TESTE_002
 
 II.EMPRÉSTIMO CONCEDIDO:
 Data de Emissão: 22/09/2025
@@ -136,12 +136,12 @@ class TestParsearContratoSintetico:
 
         monkeypatch.setattr(parser_contrato, "_extrair_texto_pdf", lambda _: texto)
 
-    def test_marli_completo(self, monkeypatch):
-        self._patch_pdf(monkeypatch, CONTRATO_SINTETICO_MARLI)
+    def test_pessoa_teste_c_completo(self, monkeypatch):
+        self._patch_pdf(monkeypatch, CONTRATO_SINTETICO_C)
         d = parsear_contrato(Path("fake.pdf"))
 
         assert d.numero_cedula == "4095068"
-        assert d.nome_emitente == "Marli Sueli Berger Dambrosio"
+        assert d.nome_emitente == "Pessoa Teste C"
         assert d.data_emissao == date(2025, 12, 29)
         assert d.primeiro_vencimento == date(2026, 2, 2)
         assert d.ultimo_vencimento == date(2027, 7, 2)
@@ -153,12 +153,12 @@ class TestParsearContratoSintetico:
         assert d.tributos_iof == 104.99
         assert d.tarifas == 0.00
 
-    def test_adriano_completo(self, monkeypatch):
-        self._patch_pdf(monkeypatch, CONTRATO_SINTETICO_ADRIANO)
+    def test_pessoa_teste_b_completo(self, monkeypatch):
+        self._patch_pdf(monkeypatch, CONTRATO_SINTETICO_B)
         d = parsear_contrato(Path("fake.pdf"))
 
         assert d.numero_cedula == "3867296"
-        assert d.nome_emitente == "Adriano Luis Calistro Lourenco"
+        assert d.nome_emitente == "Pessoa Teste B"
         assert d.data_emissao == date(2025, 9, 22)
         assert d.primeiro_vencimento == date(2025, 10, 27)
         assert d.valor_nominal == 1000.00
@@ -167,14 +167,14 @@ class TestParsearContratoSintetico:
         assert d.tributos_iof == 25.10
 
     def test_validacao_passa_quando_soma_bate(self, monkeypatch):
-        self._patch_pdf(monkeypatch, CONTRATO_SINTETICO_ADRIANO)
+        self._patch_pdf(monkeypatch, CONTRATO_SINTETICO_B)
         # 1000 + 25.10 + 0 = 1025.10 == valor_emprestimo
         with warnings.catch_warnings():
             warnings.simplefilter("error", ValidacaoContratoWarning)
             parsear_contrato(Path("fake.pdf"))  # não deve lançar warning
 
     def test_validacao_warning_quando_soma_nao_bate(self, monkeypatch):
-        contrato_quebrado = CONTRATO_SINTETICO_ADRIANO.replace(
+        contrato_quebrado = CONTRATO_SINTETICO_B.replace(
             "Valor do Empréstimo: R$ 1.025,10",
             "Valor do Empréstimo: R$ 9.999,99",
         )
@@ -183,7 +183,7 @@ class TestParsearContratoSintetico:
             parsear_contrato(Path("fake.pdf"))
 
     def test_falta_data_emissao_lanca_erro(self, monkeypatch):
-        contrato_quebrado = CONTRATO_SINTETICO_ADRIANO.replace(
+        contrato_quebrado = CONTRATO_SINTETICO_B.replace(
             "Data de Emissão: 22/09/2025\n", ""
         )
         self._patch_pdf(monkeypatch, contrato_quebrado)
@@ -192,7 +192,7 @@ class TestParsearContratoSintetico:
         assert exc.value.campo == "data_emissao"
 
     def test_falta_cedula_lanca_erro(self, monkeypatch):
-        contrato_quebrado = CONTRATO_SINTETICO_ADRIANO.replace(
+        contrato_quebrado = CONTRATO_SINTETICO_B.replace(
             "CÉDULA DE CRÉDITO BANCÁRIO N.º 3867296", "OUTRA COISA"
         )
         self._patch_pdf(monkeypatch, contrato_quebrado)
@@ -202,7 +202,7 @@ class TestParsearContratoSintetico:
 
     def test_taxa_mensal_5a_linha_nao_anual(self, monkeypatch):
         """Confirma que extraímos a Mensal e não a Anual (são parecidas no formato)."""
-        self._patch_pdf(monkeypatch, CONTRATO_SINTETICO_MARLI)
+        self._patch_pdf(monkeypatch, CONTRATO_SINTETICO_C)
         d = parsear_contrato(Path("fake.pdf"))
         # Mensal é 14,49%; Anual é 393,73%
         assert d.taxa_mensal == pytest.approx(0.1449)
@@ -215,7 +215,7 @@ class TestParsearContratoSintetico:
         Feedback do cliente (2026-08): o ¹ entre 'Juros' e 'Mensal' quebrava o
         \\s+ antigo e a extração falhava. O separador tolerante deve casar.
         """
-        contrato = CONTRATO_SINTETICO_MARLI.replace(
+        contrato = CONTRATO_SINTETICO_C.replace(
             "Taxa de Juros Mensal: 14,49%", "Taxa de Juros¹ Mensal: 14,49%"
         ).replace(
             "Taxa de Juros Anual: 393,73%", "Taxa de Juros² Anual: 393,73%"
@@ -227,7 +227,7 @@ class TestParsearContratoSintetico:
 
     def test_taxa_com_marcador_nota_digito_nfkc(self, monkeypatch):
         """Variante em que o extrator normaliza o superscript p/ dígito ASCII."""
-        contrato = CONTRATO_SINTETICO_MARLI.replace(
+        contrato = CONTRATO_SINTETICO_C.replace(
             "Taxa de Juros Mensal: 14,49%", "Taxa de Juros1 Mensal: 14,49%"
         ).replace(
             "Taxa de Juros Anual: 393,73%", "Taxa de Juros2 Anual: 393,73%"
@@ -242,13 +242,13 @@ class TestParsearContratoSintetico:
 
 
 @pytest.mark.skipif(
-    not (FIXTURES / "adriano.pdf").exists(),
-    reason="Fixture do Adriano não disponível",
+    not (FIXTURES / "pessoa_teste_b.pdf").exists(),
+    reason="Fixture do Pessoa Teste B não disponível",
 )
-def test_e2e_adriano():
+def test_e2e_pessoa_teste_b():
     from datetime import date
 
-    pdf = FIXTURES / "adriano.pdf"
+    pdf = FIXTURES / "pessoa_teste_b.pdf"
     d = parsear_contrato(pdf)
     assert d.numero_cedula == "3867296"
     assert d.prazo == 12
@@ -262,13 +262,13 @@ def test_e2e_adriano():
 
 
 @pytest.mark.skipif(
-    not (FIXTURES / "marli.pdf").exists(),
-    reason="Fixture da Marli não disponível",
+    not (FIXTURES / "pessoa_teste_c.pdf").exists(),
+    reason="Fixture da Pessoa Teste C não disponível",
 )
-def test_e2e_marli():
+def test_e2e_pessoa_teste_c():
     from datetime import date
 
-    pdf = FIXTURES / "marli.pdf"
+    pdf = FIXTURES / "pessoa_teste_c.pdf"
     d = parsear_contrato(pdf)
     assert d.numero_cedula == "4095068"
     assert d.prazo == 18

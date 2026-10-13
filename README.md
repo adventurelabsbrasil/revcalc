@@ -242,6 +242,8 @@ A página [**Releases**](https://github.com/adventurelabsbrasil/revcalc/releases
 
 Alternativa já documentada para equipe Rose (script `instalar-e-testar`) está em **`cliente-kit/`** — ver [**`cliente-kit/README_USUARIO_FINAL.md`**](cliente-kit/README_USUARIO_FINAL.md).
 
+Para executar o engine localmente no Windows, use o [kit de instalação local](cliente-kit/README_WINDOWS_LOCAL.md). O instalador baixa a tag v0.9.14, cria o ambiente Python local e instala um launcher PowerShell. O atualizador consulta tags futuras, preserva o `.env` e atualiza o código sem depender do Xeon.
+
 ---
 
 ## Como usar no dia a dia (após instalar)

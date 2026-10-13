@@ -122,7 +122,7 @@ def create_app() -> FastAPI:
         verifier_cookie = request.cookies.get(VERIFIER_COOKIE)
         code_verifier = auth_web.ler_verifier(verifier_cookie) if verifier_cookie else None
 
-        if not code or not state_recebido or state_recebido != state_esperado:
+        if not code or not state_recebido or state_recebido != state_esperado or not code_verifier:
             return RedirectResponse(f"{s.frontend_origin}/?error=state_invalido", 302)
 
         try:
@@ -133,7 +133,7 @@ def create_app() -> FastAPI:
             logger.warning("Login bloqueado: %s", e)
             return RedirectResponse(f"{s.frontend_origin}/?error=dominio_nao_autorizado", 302)
         except Exception as e:  # noqa: BLE001
-            logger.exception("Falha na troca do code")
+            logger.warning("Falha na troca OAuth; novo login necessário.")
             return RedirectResponse(f"{s.frontend_origin}/?error=falha_oauth", 302)
 
         token_store.save(email, creds)

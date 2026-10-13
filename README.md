@@ -1,6 +1,6 @@
 # RevCalc — Calculadora de Revisão de Contratos
 
-**Versão de referência:** `v0.9.14`
+**Versão do código:** `v0.9.15` (publicação da release e perfil Desktop pendentes).
 
 O RevCalc lê contratos em PDF no Google Drive, aplica a série BACEN do período correto e gera a planilha de revisão e seus artefatos de conferência. O nome RevCalc significa **Calculadora de Revisão de Contratos**.
 
@@ -36,7 +36,7 @@ O backend remoto é a infraestrutura da aplicação web. Se ele estiver indispon
 O caminho recomendado para contingência é o instalador PowerShell. Ele instala Python 3.11 quando necessário, cria o ambiente virtual e instala as dependências.
 
 1. Abra o [kit Windows](cliente-kit/README_WINDOWS_LOCAL.md).
-2. Baixe os arquivos da pasta `cliente-kit` ou clone o repositório.
+2. Receba da Adventure o kit configurado com os scripts e `revcalc-desktop.json`.
 3. Abra o PowerShell nessa pasta.
 4. Execute:
 
@@ -44,24 +44,18 @@ O caminho recomendado para contingência é o instalador PowerShell. Ele instala
 powershell -ExecutionPolicy Bypass -File .\Install-RevCalc.ps1 -InstallLibreOffice
 ```
 
-5. Preencha o `.env` criado em:
-
-```text
-%LOCALAPPDATA%\AdventureLabs\RevCalc\0.9.14\.env
-```
-
-Use as credenciais Google fornecidas pela Adventure. Nunca publique esse arquivo.
-
-6. Inicie o programa:
+5. Inicie o programa e clique em **Entrar com Google**; não é necessário editar `.env`:
 
 ```powershell
-cd "$env:LOCALAPPDATA\AdventureLabs\RevCalc\0.9.14"
-powershell -ExecutionPolicy Bypass -File .\Executar-RevCalc.ps1
+powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\AdventureLabs\RevCalc\Executar-RevCalc.ps1"
 ```
 
 O LibreOffice é opcional para o cálculo, mas recomendado para gerar capturas PDF/PNG.
 
 O procedimento completo está em [`cliente-kit/README_WINDOWS_LOCAL.md`](cliente-kit/README_WINDOWS_LOCAL.md).
+O instalador por download exige a tag v0.9.15 publicada; a release anterior não
+contém o novo fluxo. Provisionamento e critérios de liberação:
+[`docs/DESKTOP_OAUTH.md`](docs/DESKTOP_OAUTH.md).
 
 ## Resultados gerados
 
@@ -139,4 +133,4 @@ Detalhes de desenvolvimento e estrutura estão em [`README_DEV.md`](README_DEV.m
 - [Releases](https://github.com/adventurelabsbrasil/revcalc/releases)
 - [Issues](https://github.com/adventurelabsbrasil/revcalc/issues)
 
-© 2026 Adventure Labs — RevCalc v0.9.14
+© 2026 Adventure Labs — RevCalc v0.9.15

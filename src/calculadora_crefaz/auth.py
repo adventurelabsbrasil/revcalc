@@ -1,7 +1,7 @@
 """OAuth desktop flow + token persistido em keyring.
 
-Não usa client_secret — apenas client_id + PKCE + loopback redirect.
-Restringe login aos domínios autorizados (OPERAÇÃO + Adventure).
+Perfil Desktop usa client_id + PKCE + loopback, sem segredo confidencial.
+Preserva registros legados e restringe login à política do tenant.
 """
 
 from __future__ import annotations
@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
+from functools import partial
 from pathlib import Path
 from typing import Optional
 
@@ -22,6 +24,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from .auth_core import SessaoAutenticada, _email_do_token, _validar_dominio
 from .config import KEYRING_SERVICE, OAUTH_SCOPES
 from .exceptions import AuthError
+from .desktop_config import load_profile, read_dotenv, project_root
 
 __all__ = [
     "SessaoAutenticada",
@@ -42,46 +45,43 @@ def _carregar_var(nome: str) -> Optional[str]:
     if val:
         return val
 
-    raiz = Path(__file__).resolve().parents[2]
-    env_path = raiz / ".env"
-    if env_path.exists():
-        for linha in env_path.read_text().splitlines():
-            linha = linha.strip()
-            if linha.startswith(f"{nome}="):
-                return linha.split("=", 1)[1].strip().strip('"').strip("'")
-    return None
+    raiz = project_root() if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[2]
+    return read_dotenv(nome, raiz)
 
 
 def _carregar_client_id() -> str:
-    cid = _carregar_var("GOOGLE_OAUTH_CLIENT_ID")
+    cid = (
+        _carregar_var("GOOGLE_OAUTH_DESKTOP_CLIENT_ID")
+        or load_profile().get("desktop_client_id")
+        or _carregar_var("GOOGLE_OAUTH_CLIENT_ID")
+    )
     if not cid:
         raise AuthError(
             "GOOGLE_OAUTH_CLIENT_ID não definido. "
-            "Defina via env var ou em .env na raiz do projeto."
+            "Reinstale o kit com o perfil desktop fornecido pela Adventure. "
+            "Em desenvolvimento, defina GOOGLE_OAUTH_DESKTOP_CLIENT_ID."
         )
     return cid
 
 
 def _carregar_client_secret() -> str:
-    cs = _carregar_var("GOOGLE_OAUTH_CLIENT_SECRET")
-    if not cs:
-        raise AuthError(
-            "GOOGLE_OAUTH_CLIENT_SECRET não definido. "
-            "Pegue no Google Cloud Console (Credentials > OAuth 2.0 Client IDs) "
-            "e adicione ao .env."
-        )
-    return cs
+    # Preserve legacy desktop registrations. Never pair a web secret with a
+    # dedicated desktop ID. Empty string bridges google-auth's None guard;
+    # it is not a confidential credential and needs no user configuration.
+    if _carregar_var("GOOGLE_OAUTH_DESKTOP_CLIENT_ID") or load_profile():
+        return ""
+    return _carregar_var("GOOGLE_OAUTH_CLIENT_SECRET") or ""
 
 
-def _client_config(client_id: str, client_secret: str) -> dict:
+def _client_config(client_id: str, client_secret: str = "") -> dict:
     """Monta o dict que o InstalledAppFlow espera."""
     return {
         "installed": {
             "client_id": client_id,
             "client_secret": client_secret,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "auth_uri": "https://accounts.google.com/o/oauth2/v2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": ["http://localhost"],
+            "redirect_uris": ["http://127.0.0.1"],
         }
     }
 
@@ -90,7 +90,24 @@ def _username_para_email(email: str) -> str:
     return f"oauth-tokens-{email}"
 
 
+def _verificar_keyring() -> None:
+    if sys.platform == "win32":
+        from keyring.backends.Windows import WinVaultKeyring
+
+        if not isinstance(keyring.get_keyring(), WinVaultKeyring):
+            raise AuthError("Windows Credential Manager indisponível. Tokens não serão gravados em arquivos.")
+
+
+def _validar_escopos(creds: Credentials) -> None:
+    granted = creds.granted_scopes if creds.granted_scopes is not None else creds.scopes
+    if isinstance(granted, str):
+        granted = granted.split()
+    if not set(OAUTH_SCOPES).issubset(set(granted or [])):
+        raise AuthError("Autorize as permissões do Google Drive para usar o RevCalc.")
+
+
 def _salvar_token(email: str, creds: Credentials) -> None:
+    _verificar_keyring()
     payload = creds.to_json()
     keyring.set_password(KEYRING_SERVICE, _username_para_email(email), payload)
     # Salva também o último email logado, pra próxima abertura saber qual buscar
@@ -98,13 +115,23 @@ def _salvar_token(email: str, creds: Credentials) -> None:
 
 
 def _carregar_token(email: str) -> Optional[Credentials]:
+    _verificar_keyring()
     raw = keyring.get_password(KEYRING_SERVICE, _username_para_email(email))
     if not raw:
         return None
-    return Credentials.from_authorized_user_info(json.loads(raw), OAUTH_SCOPES)
+    try:
+        data = json.loads(raw)
+        # New public-client tokens may omit client_secret; legacy tokens retain
+        # their original client ID/secret so their refresh grant still works.
+        data.setdefault("client_secret", "")
+        return Credentials.from_authorized_user_info(data)
+    except (ValueError, TypeError, AttributeError):
+        logger.warning("Credencial salva inválida; novo login necessário.")
+        return None
 
 
 def ultimo_email_logado() -> Optional[str]:
+    _verificar_keyring()
     return keyring.get_password(KEYRING_SERVICE, "ultimo-email")
 
 
@@ -117,6 +144,11 @@ def carregar_sessao_existente() -> Optional[SessaoAutenticada]:
     if not email:
         return None
 
+    try:
+        _validar_dominio(email)
+    except AuthError:
+        return None
+
     creds = _carregar_token(email)
     if not creds:
         return None
@@ -124,13 +156,23 @@ def carregar_sessao_existente() -> Optional[SessaoAutenticada]:
     if creds.expired and creds.refresh_token:
         try:
             creds.refresh(Request())
-            _salvar_token(email, creds)
-        except Exception as e:
-            logger.warning("Falha ao renovar token: %s", e)
+        except Exception:
+            logger.warning("Falha ao renovar token; novo login necessário.")
             return None
 
     if not creds.valid:
         return None
+
+    try:
+        _validar_escopos(creds)
+        identity = _email_do_token(creds)
+        _validar_dominio(identity)
+        if identity.lower() != email.lower():
+            return None
+    except Exception:
+        logger.warning("Não foi possível validar a conta salva.")
+        return None
+    _salvar_token(email, creds)
 
     return SessaoAutenticada(credentials=creds, email=email)
 
@@ -141,24 +183,44 @@ def fluxo_login() -> SessaoAutenticada:
     Valida domínio do email retornado e persiste token no keyring.
     """
     client_id = _carregar_client_id()
+    _verificar_keyring()
     client_secret = _carregar_client_secret()
     flow = InstalledAppFlow.from_client_config(
         _client_config(client_id, client_secret),
         scopes=OAUTH_SCOPES,
+        autogenerate_code_verifier=True,
     )
+    # Public clients identify themselves in the token body, not HTTP Basic auth.
+    flow.fetch_token = partial(flow.fetch_token, include_client_id=True)
     # run_local_server abre browser, sobe servidor loopback em porta randômica,
     # captura o redirect com o code, troca por tokens
-    creds = flow.run_local_server(
-        port=0,  # porta randômica
-        open_browser=True,
-        success_message=(
-            "Autenticação concluída. Você pode fechar esta aba e voltar ao app."
-        ),
-    )
+    try:
+        creds = flow.run_local_server(
+            host="127.0.0.1",
+            bind_addr="127.0.0.1",
+            port=0,
+            open_browser=True,
+            timeout_seconds=180,
+            authorization_prompt_message=None,
+            success_message="Resposta recebida. Volte ao RevCalc para verificar o acesso.",
+            access_type="offline",
+            prompt="consent",
+        )
+    except Exception:
+        # OAuth exceptions can contain authorization codes or token responses.
+        raise AuthError("Login não concluído, cancelado ou expirado. Tente entrar novamente.") from None
 
-    email = _email_do_token(creds)
-    _validar_dominio(email)
-    _salvar_token(email, creds)
+    try:
+        _validar_escopos(creds)
+        if not creds.refresh_token:
+            raise AuthError("Google não forneceu acesso persistente. Tente entrar novamente e confirme o consentimento.")
+        email = _email_do_token(creds)
+        _validar_dominio(email)
+        _salvar_token(email, creds)
+    except AuthError:
+        raise
+    except Exception:
+        raise AuthError("Não foi possível validar ou salvar a conta. Tente entrar novamente.") from None
 
     return SessaoAutenticada(credentials=creds, email=email)
 
@@ -168,6 +230,7 @@ def logout(email: Optional[str] = None) -> None:
     email = email or ultimo_email_logado()
     if not email:
         return
+    _verificar_keyring()
     try:
         keyring.delete_password(KEYRING_SERVICE, _username_para_email(email))
     except keyring.errors.PasswordDeleteError:

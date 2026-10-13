@@ -52,6 +52,7 @@ def _flow(state: Optional[str] = None) -> Flow:
         scopes=OAUTH_SCOPES,
         redirect_uri=get_settings().redirect_uri,
         state=state,
+        autogenerate_code_verifier=True,
     )
 
 
@@ -78,9 +79,12 @@ def trocar_code(code: str, state: Optional[str] = None, code_verifier: Optional[
     `code_verifier` é o PKCE gerado no /login (persistido em cookie assinado);
     sem ele o Google rejeita a troca com invalid_grant "Missing code verifier".
     """
+    from calculadora_crefaz.exceptions import AuthError
+
+    if not state or not code_verifier:
+        raise AuthError("Transação OAuth incompleta. Inicie um novo login.")
     flow = _flow(state=state)
-    if code_verifier is not None:
-        flow.code_verifier = code_verifier
+    flow.code_verifier = code_verifier
     flow.fetch_token(code=code)
     creds = flow.credentials
     email = _email_do_token(creds)

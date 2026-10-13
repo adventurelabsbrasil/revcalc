@@ -52,12 +52,13 @@ try {
         Copy-Item ".env.example" ".env"
         Write-Warning "Preencha .env com as credenciais Google antes da primeira execução."
     }
-    @'
+    $Launcher = @'
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 & .\.venv\Scripts\python.exe -m calculadora_crefaz
 if ($LASTEXITCODE -ne 0) { Read-Host "RevCalc encerrou com erro. Pressione Enter" }
-'@ | Set-Content -Path (Join-Path $InstallRoot "Executar-RevCalc.ps1") -Encoding UTF8
+'@
+    $Launcher | Set-Content -Path (Join-Path $InstallRoot "Executar-RevCalc.ps1") -Encoding UTF8
     Write-Host "Instalação concluída em: $InstallRoot" -ForegroundColor Green
     Write-Host "Edite .env e execute Executar-RevCalc.ps1."
 } finally { Pop-Location }

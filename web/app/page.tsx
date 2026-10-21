@@ -241,6 +241,9 @@ export default function Home() {
         </span>
         <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <Novidades />
+          <Link className="link" href="/assistente">
+            Assistente
+          </Link>
           <Link className="link" href="/feedback">
             Feedback
           </Link>

@@ -188,3 +188,73 @@ export async function sendFeedback(payload: FeedbackPayload): Promise<FeedbackRe
     return { kind: "error", message: "Falha de conexão ao enviar o feedback." };
   }
 }
+
+// ─── Assistente (agente que consulta o Drive) ─────────────────────────────
+
+export type EventoAssistente =
+  | { tipo: "conversa"; token: string }
+  | { tipo: "texto"; texto: string }
+  | { tipo: "fim" }
+  | { tipo: "erro"; mensagem: string; reiniciar?: boolean };
+
+export type PerguntaResult =
+  | { kind: "ok" }
+  | { kind: "not_authenticated" }
+  | { kind: "error"; message: string };
+
+export async function fetchAssistenteConfig(): Promise<{ enabled: boolean }> {
+  try {
+    const r = await fetch(`${API_BASE}/api/assistente/config`, { credentials: "include" });
+    if (!r.ok) return { enabled: false };
+    return (await r.json()) as { enabled: boolean };
+  } catch {
+    return { enabled: false };
+  }
+}
+
+// POST com resposta SSE: EventSource só faz GET, então lê o corpo em stream e
+// separa os blocos `data: …` à mão. `conversa` = token devolvido no 1º turno.
+export async function perguntarAssistente(
+  texto: string,
+  conversa: string | null,
+  onEvento: (ev: EventoAssistente) => void,
+): Promise<PerguntaResult> {
+  let r: Response;
+  try {
+    r = await fetch(`${API_BASE}/api/assistente/mensagem`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto, conversa }),
+    });
+  } catch {
+    return { kind: "error", message: "Falha de conexão com o assistente." };
+  }
+  if (r.status === 401) return { kind: "not_authenticated" };
+  if (!r.ok || !r.body) {
+    const body = await r.json().catch(() => ({}));
+    return { kind: "error", message: body?.error ?? `Erro ${r.status}.` };
+  }
+
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let fimBloco: number;
+      while ((fimBloco = buffer.indexOf("\n\n")) >= 0) {
+        const bloco = buffer.slice(0, fimBloco);
+        buffer = buffer.slice(fimBloco + 2);
+        for (const linha of bloco.split("\n")) {
+          if (linha.startsWith("data: ")) onEvento(JSON.parse(linha.slice(6)) as EventoAssistente);
+        }
+      }
+    }
+  } catch {
+    return { kind: "error", message: "A conexão com o assistente caiu no meio da resposta." };
+  }
+  return { kind: "ok" };
+}

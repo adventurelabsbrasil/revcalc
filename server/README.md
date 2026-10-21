@@ -37,6 +37,8 @@ Veja `.env.example` na raiz. Mínimo:
 | `COOKIE_SECURE` | `true` | `false` só em dev http |
 | `TOKEN_ENC_KEY` | (Fernet key) | opcional; se ausente, derivada do `SESSION_SECRET` |
 | `REVCALC_PASTA_MAE_ID` / `REVCALC_PASTA_BACEN_ID` | (Drive IDs) | opcional; fallback = prod OPERAÇÃO |
+| `ANTHROPIC_API_KEY` | `sk-ant-…` | opcional (aba Assistente); chave escopada ao workspace do agente |
+| `ASSISTENTE_AGENT_ID` / `ASSISTENTE_ENVIRONMENT_ID` / `ASSISTENTE_VAULT_ID` | `agent_…` / `env_…` / `vlt_…` | opcional; sem as 4 vars o chat fica indisponível. Vault = credencial OAuth do MCP do Drive |
 
 > **Cookies first-party:** sirva o front num subdomínio do mesmo domínio da API
 > (ex.: `revcalc.adventurelabs.com.br` via domínio custom na Vercel +

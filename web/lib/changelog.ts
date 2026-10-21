@@ -10,6 +10,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.9.15",
+    date: "21/10/2026",
+    items: [
+      "Nova aba Assistente: converse para localizar pastas e documentos dos clientes no Drive. O Assistente só consulta, nunca altera arquivos.",
+      "Windows: novo instalador e atualizador local; o login com Google no app desktop funciona sem configuração manual e reinstalar preserva as configurações.",
+    ],
+  },
+  {
     version: "0.9.14",
     date: "24/09/2026",
     items: [

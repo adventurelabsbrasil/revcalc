@@ -33,6 +33,7 @@ web = [
     "uvicorn[standard]>=0.30.0",
     "cryptography>=42.0.0",
     "itsdangerous>=2.1.0",
+    "anthropic>=2.0.0",  # assistente (Managed Agents)
 ]
 
 [project.scripts]

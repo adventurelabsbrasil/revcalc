@@ -10,6 +10,8 @@ Rotas:
   POST /api/feedback                 — registra feedback (feat/bug/erro_sistema/duvida)
   POST /api/run                      — inicia run; pré-check de dedup → 409
   GET  /api/run/{id}/events?t=token  — SSE com o progresso ao vivo
+  GET  /api/assistente/config        — { enabled } p/ o front saber se mostra o chat
+  POST /api/assistente/mensagem      — envia pergunta ao assistente; resposta via SSE
 
 O motor de cálculo (calculadora_crefaz) roda inalterado dentro do container.
 """
@@ -20,7 +22,10 @@ import asyncio
 import json
 import logging
 import shutil
+import threading
 from typing import Optional
+
+import anthropic
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,7 +34,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from calculadora_crefaz import __version__ as ENGINE_VERSION
 from calculadora_crefaz.exceptions import AuthError
 
-from . import auth_web, feedback, token_store
+from . import assistente, auth_web, feedback, token_store
 from .run_input import extrair_nomes
 from .sessions import FIM, manager
 from .settings import get_settings
@@ -39,6 +44,12 @@ logger = logging.getLogger(__name__)
 STATE_COOKIE = "revcalc_oauth_state"
 VERIFIER_COOKIE = "revcalc_oauth_verifier"  # PKCE code_verifier (assinado), par do STATE_COOKIE
 SSE_PING_TIMEOUT = 15  # segundos entre pings p/ manter a conexão SSE viva atrás de proxy
+ASSISTENTE_MAX_CHARS = 4000
+SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",  # desliga buffering do nginx/proxy
+}
 
 
 # ─── Cookies de sessão ──────────────────────────────────────────────────────
@@ -275,15 +286,79 @@ def create_app() -> FastAPI:
             finally:
                 manager.remover(run_id)
 
-        return StreamingResponse(
-            gen(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",  # desliga buffering do nginx/proxy
-            },
-        )
+        return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+    # ── Assistente (Managed Agent que consulta o Drive) ──
+    @app.get("/api/assistente/config")
+    async def assistente_config() -> Response:
+        return JSONResponse({"enabled": assistente.habilitado()})
+
+    @app.post("/api/assistente/mensagem")
+    async def assistente_mensagem(request: Request) -> Response:
+        email = _email_da_sessao(request)
+        if not email:
+            return JSONResponse({"error": "nao_autenticado"}, status_code=401)
+        if not assistente.habilitado():
+            return JSONResponse({"error": "O assistente está indisponível no momento."}, status_code=503)
+
+        try:
+            body = await request.json()
+        except Exception:  # noqa: BLE001
+            body = {}
+        texto = str(body.get("texto") or "").strip()
+        if not texto:
+            return JSONResponse({"error": "Escreva uma pergunta."}, status_code=400)
+        if len(texto) > ASSISTENTE_MAX_CHARS:
+            return JSONResponse(
+                {"error": f"Pergunta longa demais (máx. {ASSISTENTE_MAX_CHARS} caracteres)."},
+                status_code=400,
+            )
+        conversa = body.get("conversa")
+        session_id = auth_web.ler_conversa(conversa, email) if isinstance(conversa, str) else None
+
+        # O SDK é síncrono: o turno roda numa thread e entrega eventos pela fila do loop,
+        # o que deixa o gerador SSE mandar ping enquanto o agente usa ferramentas.
+        loop = asyncio.get_running_loop()
+        fila: asyncio.Queue = asyncio.Queue()
+
+        def emitir(ev) -> None:
+            loop.call_soon_threadsafe(fila.put_nowait, ev)
+
+        def turno() -> None:
+            try:
+                client = assistente.criar_cliente()
+                sid = session_id
+                if not sid:
+                    sid = assistente.criar_sessao(client)
+                    emitir({"tipo": "conversa", "token": auth_web.assinar_conversa(sid, email)})
+                for trecho in assistente.conversar(client, sid, texto):
+                    emitir({"tipo": "texto", "texto": trecho})
+                emitir({"tipo": "fim"})
+            except anthropic.NotFoundError:
+                emitir({"tipo": "erro", "mensagem": "A conversa expirou. Comece uma nova.", "reiniciar": True})
+            except assistente.AssistenteErro as e:
+                logger.warning("Assistente encerrou o turno: %s", e)
+                emitir({"tipo": "erro", "mensagem": "O assistente não conseguiu responder. Tente de novo.", "reiniciar": True})
+            except Exception:  # noqa: BLE001
+                logger.exception("Falha inesperada no assistente")
+                emitir({"tipo": "erro", "mensagem": "Falha ao falar com o assistente. Tente de novo."})
+            finally:
+                emitir(FIM)
+
+        threading.Thread(target=turno, daemon=True, name="assistente-turno").start()
+
+        async def gen():
+            while True:
+                try:
+                    ev = await asyncio.wait_for(fila.get(), timeout=SSE_PING_TIMEOUT)
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+                    continue
+                if ev is FIM:
+                    break
+                yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+
+        return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
 
     return app
 

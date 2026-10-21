@@ -27,6 +27,7 @@ os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
 SESSION_MAX_AGE = 60 * 60 * 24 * 14   # 14 dias
 STATE_MAX_AGE = 60 * 10               # 10 min p/ completar o consent
 STREAM_MAX_AGE = 60 * 10             # 10 min p/ abrir o SSE após o POST /run
+CONVERSA_MAX_AGE = 60 * 60 * 12      # 12 h de conversa com o assistente na mesma sessão
 
 
 def _serializer() -> URLSafeTimedSerializer:
@@ -136,3 +137,21 @@ def ler_stream_token(token: str) -> Optional[dict]:
         return _serializer().loads(token, salt="stream", max_age=STREAM_MAX_AGE)
     except (BadSignature, SignatureExpired):
         return None
+
+
+def assinar_conversa(session_id: str, email: str) -> str:
+    """Token da conversa com o assistente: amarra a sessão do agente ao usuário.
+
+    Fica no front (stateless) p/ a conversa sobreviver ao failover xeon↔beelink.
+    """
+    return _serializer().dumps({"session_id": session_id, "email": email}, salt="assistente")
+
+
+def ler_conversa(token: str, email: str) -> Optional[str]:
+    try:
+        payload = _serializer().loads(token, salt="assistente", max_age=CONVERSA_MAX_AGE)
+    except (BadSignature, SignatureExpired):
+        return None
+    if not isinstance(payload, dict) or payload.get("email") != email:
+        return None
+    return payload.get("session_id")
